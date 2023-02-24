@@ -19,7 +19,7 @@
       double precision massa,lambda
       include 'exercicishake.dim'
 
-c     1. Dimensionament de magnituds
+c     1. Dimensionament de magnituds.
 
       dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol),
      &rnova(3,nmax,nmaxmol)
