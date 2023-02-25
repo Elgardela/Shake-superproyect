@@ -4,6 +4,7 @@
 3.405d0,119.8d0
 39.948d0
 3.0d0
+1000
 ********************************************************************
 1.nconf(nombre de configuracions)
 2.deltat(pas de temps en ps),taut(en K*ps**2)
@@ -11,3 +12,4 @@
 4.sigma,epsil(parametres LJ en A i K)
 5.massa
 6.enllas(tamany de l'enllas en A)
+7.nombre bins

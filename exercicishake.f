@@ -17,6 +17,7 @@
 
       implicit double precision(a-h,o-z)
       double precision massa,lambda
+      real*8,dimension(:,:), allocatable::gr_mat
       include 'exercicishake.dim'
 
 c     1. Dimensionament de magnituds.
@@ -36,6 +37,7 @@ c     2. Lectura de dades i calcul de quantitats relacionades
          read(1,*) sigma,epsil
          read(1,*) massa
          read(1,*) r0
+         read(1,*) num_bins
       close(1)
 
       natoms = 3
@@ -63,6 +65,7 @@ c     5. Comença el bucle de la generacio de configuracions
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Iter, ekin, epot, etot, temp, lambda")
 
+      allocate(gr_mat(num_bins))
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
          call factlambda(nmolecules,natoms,vinf,nf,tempref,
@@ -76,6 +79,8 @@ c
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
          write(99,*) (i,ecin,epot,ecin+epot,temperatura,lambda,l=1,1)
+         
+         call g_r(gr_mat, r, num_bins, costat, switch_case)
       end do
       close(99)
 c     5. Escriptura de la darrera configuracio en A i A/ps 
@@ -298,3 +303,74 @@ c       la posicio l'instant t + deltat.
 
       return
       end
+      
+      
+      
+*********************************************************
+*********************************************************
+c              subrutina radial distribution
+*********************************************************
+*********************************************************
+      
+      subroutine g_r(gr_mat, r, num_bins, box_size, switch_case)
+      implicit double precision(a-h,o-z)
+      integer(kind=i64), intent(in)      :: switch_case
+      
+      integer(kind=i64), save                      :: i, index_mat, j, total_part, n_gdr
+      real(kind=dp), save                          :: dr, dist, dv, ndg, dens
+      include 'exercicishake.dim'
+      dimension r(3,nmax,nmaxmol), gr_mat(2,num_bins), rij(3)
+      
+      
+       select case (switch_case)
+            case (1_i64)
+            	n_gdr = 0_i64
+      		total_part=nmax*nmaxmol
+      
+      		dr = box_size / real(2*num_bins, kind=dp)
+     		dens = real(total_part, kind=dp) / (box_size ** 3)
+
+       		gr_mat(1,:) = [(real(i, kind=dp)*dr, i=1, num_bins)]
+       		gr_mat(2,:) = 0.0_dp
+       		
+       	    case (2_i64)
+       	    	n_gdr = n_gdr + 1_i64
+       	    	
+	        do ic = 1,nmolecules-1
+		  do is = 1,nmax
+		    do jc = ic+1,nmolecules
+		       do js = 1,natoms
+			  rij(:)=r(:,js,jc)-r(:,is,ic)
+			  rij=rij - box_size*dnint(rij/box_size)
+			  
+			  dist=dsqrt(sum(rij**2))
+			  
+			  ! Apliquem el cutoff de maxima distancia
+                          if (dist .lt. box_size/2) then
+                              index_mat = int(dist/dr, kind=i64) + 1_i64
+                              gr_mat(2, index_mat) = gr_mat(2, index_mat) + 2.0_dp
+                          end if
+		       end do
+		    end do
+		  end do
+	        end do
+        
+              
+             case (3_i64)
+        
+                ! SWITCH = 3 => Calculem g(r)
+                open(11, file='radial_distribution.txt',status='unknown',access='append', action="write")
+ 
+                do i = 1, num_bins
+                    associate(gdr => gr_mat(2,i))
+                        dv = (((real(i, kind=dp) + 1.0_dp) ** 3) - (real(i, kind=dp) ** 3)) * (dr ** 3)
+                        ndg = (4.0_dp / 3.0_dp) * pi * dv * dens
+                        gdr = gdr / (real(total_part, kind=dp) * ndg * real(n_gdr, kind=dp))
+                    end associate
+                    write(11,*)   gr_mat(1,i), gr_mat(2,i)
+                end do
+                write(1,*) " "
+                close(1)
+            end select
+            
+      end subroutine g_r
