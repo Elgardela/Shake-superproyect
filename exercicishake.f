@@ -26,6 +26,7 @@ c     1. Dimensionament de magnituds.
       dimension vinf(3,nmax,nmaxmol)
       dimension accel(3,nmax,nmaxmol)
 
+
 c     2. Lectura de dades i calcul de quantitats relacionades
 
       open(1,file='exercicishake.dades',status='old')
@@ -59,6 +60,8 @@ c     4. Expressa les quantitats en unitats reduides
      &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
 
 c     5. Comença el bucle de la generacio de configuracions 
+      open(99, file='thermdata.out', status='replace')
+      write(99,*) ("Iter, ekin, epot, etot, temp, lambda")
 
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -72,7 +75,9 @@ c         call shake(nmolecules,r,rpro,rnova,r0)
 c
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
+         write(99,*) (i,ecin,epot,ecin+epot,temperatura,lambda,l=1,1)
       end do
+      close(99)
 c     5. Escriptura de la darrera configuracio en A i A/ps 
 
       open(11,file='confnova.data',status='unknown')
