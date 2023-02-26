@@ -66,7 +66,7 @@ c     5. Comença el bucle de la generacio de configuracions
       write(99,*) ("Iter, ekin, epot, etot, temp, lambda")
 
       allocate(gr_mat(2,num_bins))
-      call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 1)
+      call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -83,7 +83,7 @@ c
          write(99,*) (i,ecin,epot,ecin+epot,temperatura,lambda,l=1,1)
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
-     
+     	 
       end do
       close(99)
 
@@ -331,8 +331,8 @@ c              subrutina radial distribution
       
       implicit double precision(a-h,o-z)
       integer, intent(in)      :: switch_case
-      real*8, parameter        :: PI = 4.d0 * datan(1.d0)
-      integer, save            :: i, index_mat,total_part, n_gdr
+      real*8, parameter        :: pi = 4.d0 * datan(1.d0)
+      integer, save            :: index_mat,total_part, n_gdr
       real*8, save             :: dr, dist, dv, ndg, dens
       include 'exercicishake.dim'
       dimension r(3,nmax,nmaxmol), gr_mat(2,num_bins), rij(3)
@@ -341,9 +341,11 @@ c              subrutina radial distribution
        select case (switch_case)
             case (1)
             	n_gdr = 0
-      		total_part=nmax*nmaxmol
-      
-      		dr = box_size / dble(2*num_bins)
+            	
+            	
+      		total_part=natoms*nmolecules
+      		
+      		dr = box_size / (2.d0*dble(num_bins))
      		dens = dble(total_part) / (box_size ** 3)
 
        		gr_mat(1,:) = [(dble(i)*dr, i=1, num_bins)]
@@ -360,9 +362,8 @@ c              subrutina radial distribution
 			  rij=rij - box_size*dnint(rij/box_size)
 			  
 			  dist=dsqrt(sum(rij**2))
-			  
 			  ! Apliquem el cutoff de maxima distancia
-                          if (dist .lt. box_size/2) then
+                          if (dist .lt. box_size/2.d0) then
                             index_mat = int(dist/dr) + 1
                             gr_mat(2,index_mat)=gr_mat(2,index_mat)+2.d0
                           end if
@@ -380,9 +381,11 @@ c              subrutina radial distribution
                  associate(gdr => gr_mat(2,i))
                   dv = (((dble(i) + 1.d0)**3)-(dble(i)**3))*(dr**3)
                   ndg = (4.d0/ 3.d0) * pi * dv * dens
-                  gdr = gdr / (dble(total_part * ndg * n_gdr))
+                  
+                  gdr = gdr / (dble(total_part) * ndg * dble(n_gdr))
                  end associate
                 end do
+                
             end select
             
       end subroutine g_r
