@@ -61,7 +61,7 @@ c     4. Expressa les quantitats en unitats reduides
       call reduides(nmolecules,natoms,r,vinf,costat,deltat,
      &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
 
-c     5. Comença el bucle de la generacio de configuracions 
+c     5. Comenï¿½a el bucle de la generacio de configuracions 
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Iter, ekin, epot, etot, temp, lambda")
 
@@ -339,53 +339,51 @@ c              subrutina radial distribution
       
       
        select case (switch_case)
-            case (1)
-            	n_gdr = 0
-            	
-            	
-      		total_part=natoms*nmolecules
-      		
-      		dr = box_size / (2.d0*dble(num_bins))
-     		dens = dble(total_part) / (box_size ** 3)
+         case (1)
+            ! SWITCH 1 => Memmory initialization
+            n_gdr = 0
+            total_part=natoms*nmolecules
+         
+            dr = box_size / (2.d0*dble(num_bins))
+            dens = dble(total_part) / (box_size ** 3)
 
-       		gr_mat(1,:) = [(dble(i)*dr, i=1, num_bins)]
-       		gr_mat(2,:) = 0.d0
-       		
-       	    case (2)
-       	    	n_gdr = n_gdr + 1
-       	    	
-	        do ic = 1,nmolecules-1
-		  do is = 1,natoms
-		    do jc = ic+1,nmolecules
-		       do js = 1,natoms
-			  rij(:)=r(:,js,jc)-r(:,is,ic)
-			  rij=rij - box_size*dnint(rij/box_size)
-			  
-			  dist=dsqrt(sum(rij**2))
-			  ! Apliquem el cutoff de maxima distancia
-                          if (dist .lt. box_size/2.d0) then
-                            index_mat = int(dist/dr) + 1
-                            gr_mat(2,index_mat)=gr_mat(2,index_mat)+2.d0
-                          end if
-		       end do
-		    end do
-		  end do
-	        end do
-        
-              
-             case (3)
-        
-                ! SWITCH = 3 => Calculem g(r)
-                
-                do i = 1, num_bins
-                 associate(gdr => gr_mat(2,i))
+            gr_mat(1,:) = [(dble(i)*dr, i=1, num_bins)]
+            gr_mat(2,:) = 0.d0
+         
+         case (2)
+            ! SWITCH 2 => Positions binning
+            n_gdr = n_gdr + 1
+            
+            do ic = 1,nmolecules-1
+               do is = 1,natoms
+                  do jc = ic+1,nmolecules
+                     do js = 1,natoms
+                        rij(:) = r(:,js,jc)-r(:,is,ic)
+                        rij = rij - box_size*dnint(rij/box_size)
+         
+                        dist=dsqrt(sum(rij**2))
+                        ! Apliquem el cutoff de maxima distancia
+                        if (dist .lt. box_size/2.d0) then
+                           index_mat = int(dist/dr) + 1
+                           gr_mat(2,index_mat) = gr_mat(2,index_mat) + 2.d0
+                        end if
+                     end do
+                  end do
+               end do
+         end do
+
+         case (3)
+            ! SWITCH = 3 => Normalization of g(r)
+               
+            do i = 1, num_bins
+               associate(gdr => gr_mat(2,i))
                   dv = (((dble(i) + 1.d0)**3)-(dble(i)**3))*(dr**3)
                   ndg = (4.d0/ 3.d0) * pi * dv * dens
-                  
+               
                   gdr = gdr / (dble(total_part) * ndg * dble(n_gdr))
-                 end associate
-                end do
+               end associate
+            end do
                 
-            end select
+         end select
             
       end subroutine g_r
