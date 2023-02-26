@@ -1,16 +1,30 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Parameters
+SIGMA: float = 3.405  # [A]
+EPSILON: float = 119.8 * 1.380649e-20  # [kJ]
+KB: float = 1.380649e-20  # [kJ/K]
+
+RED_UNITS: bool = True  # Compute in reduced units
+
 def plot_energies(steps_array: np.ndarray, ekin_array, epot_array, etot_array) -> None:
 
     fig, ax = plt.subplots()
 
     ax.set_xlabel('Simulation step')
-    ax.set_ylabel('Energy')
+    if RED_UNITS:
+        ax.set_ylabel('Energy [kJ]')
 
-    ax.plot(steps_array, ekin_array, label='Ekin')
-    ax.plot(steps_array, epot_array, label='Epot')
-    ax.plot(steps_array, etot_array, label='Etot')
+        ax.plot(steps_array, ekin_array*EPSILON, label='Ekin')
+        ax.plot(steps_array, epot_array*EPSILON, label='Epot')
+        ax.plot(steps_array, etot_array*EPSILON, label='Etot')
+    else:
+        ax.set_ylabel('Energy [-]')
+
+        ax.plot(steps_array, ekin_array, label='Ekin')
+        ax.plot(steps_array, epot_array, label='Epot')
+        ax.plot(steps_array, etot_array, label='Etot')
 
     plt.legend()
 
@@ -24,9 +38,13 @@ def plot_temperature(steps_array, temp_array) -> None:
     fig, ax = plt.subplots()
 
     ax.set_xlabel('Simulation step')
-    ax.set_ylabel('Temperature')
 
-    ax.plot(steps_array, temp_array, label='Ekin')
+    if RED_UNITS:
+        ax.set_ylabel('Temperature [K]')
+        ax.plot(steps_array, temp_array*EPSILON/KB)
+    else:
+        ax.set_ylabel('Temperature [-]')
+        ax.plot(steps_array, temp_array)
 
     plt.legend()
 
@@ -39,9 +57,9 @@ def plot_lambda(steps_array, lambda_array) -> None:
     fig, ax = plt.subplots()
 
     ax.set_xlabel('Simulation step')
-    ax.set_ylabel('Temperature')
+    ax.set_ylabel('Berendsen Lambda [-]')
 
-    ax.plot(steps_array, lambda_array, label='Ekin')
+    ax.plot(steps_array, lambda_array)
 
     plt.legend()
 
