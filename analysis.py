@@ -67,10 +67,31 @@ def plot_lambda(steps_array, lambda_array) -> None:
 
     return None
 
+def plot_gdr(radi_array, gdr_array) -> None:
+
+    fig, ax = plt.subplots()
+    if RED_UNITS:
+        ax.set_xlabel(r'Distance $r$[$\AA$]')
+        ax.set_ylabel(r'Radial distribution function, $g(r)$')
+        
+        ax.plot(radi_array*SIGMA, gdr_array)
+    else: 
+        ax.set_xlabel(r'Distance $r$ [-]')
+        ax.set_ylabel(r'Radial distribution function, $g(r)$')
+        
+        ax.plot(radi_array, gdr_array)
+
+    plt.legend()
+
+    plt.show()
+
+    return None
+
 if __name__ == '__main__':
 
     # Loading data from the output file
     data = np.loadtxt('thermdata.out', dtype=np.float64, skiprows=1)
+    data_g_r = np.loadtxt('radial_func.out', dtype=np.float64, skiprows=1)
 
     # Separating observables
     steps: np.ndarray = data[:, 0]
@@ -80,7 +101,11 @@ if __name__ == '__main__':
     etotal: np.ndarray = data[:, 3]
     temperature: np.ndarray = data[:, 4]
     lambda_val: np.ndarray = data[:, 5]
+    
+    radi: np.ndarray = data_g_r[:, 0]
+    gdr: np.ndarray = data_g_r[:, 1]
 
     plot_energies(steps, ekinetik, epotential, etotal)
     plot_temperature(steps, temperature)
     plot_lambda(steps, lambda_val)
+    plot_gdr(radi, gdr)
