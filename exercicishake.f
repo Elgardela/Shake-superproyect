@@ -63,7 +63,7 @@ c     4. Expressa les quantitats en unitats reduides
 
 c     5. Comen�a el bucle de la generacio de configuracions 
       open(99, file='thermdata.out', status='replace')
-      write(99,*) ("Iter, ekin, epot, etot, temp, lambda")
+      write(99,*) ("Time, ekin, epot, etot, temp, lambda")
 
       allocate(gr_mat(2,num_bins))
       call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
@@ -80,7 +80,10 @@ c         call shake(nmolecules,r,rpro,rnova,r0)
 c
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
-         write(99,*) (i,ecin,epot,ecin+epot,temperatura,lambda,l=1,1)
+         
+         sim_temps = i*deltat
+
+         write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,lambda
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
      	 
@@ -92,7 +95,7 @@ c     Escriptura g(r)
       write(22,*) ("dr, g(r)")
       call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 3)
       do  j=1,num_bins 
-      write(22,*)  gr_mat(1,j),gr_mat(2,j)
+         write(22,*)  gr_mat(1,j),gr_mat(2,j)
       enddo
       close(22)
       
@@ -129,6 +132,7 @@ c              unitat de temps expressada en ps
 
       rgas = 8.314472673d0 !J/(mol*K) 
       utemps = sigma*dsqrt(massa/epsil)*dsqrt(10.d0/rgas)
+      print *, utemps
       uvel = sigma/utemps !unitat de velocitat expressada en A/ps
 
       costat = costat/sigma

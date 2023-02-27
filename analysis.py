@@ -3,32 +3,39 @@ import matplotlib.pyplot as plt
 
 # Parameters
 SIGMA: float = 3.405  # [A]
-EPSILON: float = 119.8 * 1.380649e-20  # [kJ]
+EPSILON: float = 119.8 # [K]
 KB: float = 1.380649e-20  # [kJ/K]
+R_G: float = 8.314472673 #J/(mol*K)
+MASS: float = 39.948
+utemps = SIGMA * np.sqrt(MASS/EPSILON) * np.sqrt(10.0/R_G)
+print(utemps)
 
-RED_UNITS: bool = True  # Compute in reduced units
+EPSILON *= 1.380649e-20  # [kJ]
+
+RED_UNITS: bool = False  # Compute in reduced units
 
 def plot_energies(steps_array: np.ndarray, ekin_array, epot_array, etot_array) -> None:
 
     fig, ax = plt.subplots()
 
-    ax.set_xlabel('Simulation step')
-    if RED_UNITS:
+    if not RED_UNITS:
+        ax.set_xlabel('Simulation time [ps]')
         ax.set_ylabel('Energy [kJ]')
 
-        ax.plot(steps_array, ekin_array*EPSILON, label='Ekin')
-        ax.plot(steps_array, epot_array*EPSILON, label='Epot')
-        ax.plot(steps_array, etot_array*EPSILON, label='Etot')
+        ax.plot(steps_array*utemps, ekin_array*EPSILON, label='Ekin', color='red')
+        ax.plot(steps_array*utemps, epot_array*EPSILON, label='Epot', color='green')
+        ax.plot(steps_array*utemps, etot_array*EPSILON, label='Etot', color='black')
     else:
+        ax.set_xlabel('Simulation time [-]')
         ax.set_ylabel('Energy [-]')
 
-        ax.plot(steps_array, ekin_array, label='Ekin')
-        ax.plot(steps_array, epot_array, label='Epot')
-        ax.plot(steps_array, etot_array, label='Etot')
+        ax.plot(steps_array, ekin_array, label='Ekin', color='red')
+        ax.plot(steps_array, epot_array, label='Epot', color='green')
+        ax.plot(steps_array, etot_array, label='Etot', color='black')
 
     plt.legend()
 
-    plt.show()
+    fig.savefig('figs/energy.eps')
     plt.close()
 
     return None
@@ -37,18 +44,20 @@ def plot_temperature(steps_array, temp_array) -> None:
 
     fig, ax = plt.subplots()
 
-    ax.set_xlabel('Simulation step')
+    
 
-    if RED_UNITS:
+    if not RED_UNITS:
+        ax.set_xlabel('Simulation time [ps]')
         ax.set_ylabel('Temperature [K]')
-        ax.plot(steps_array, temp_array*EPSILON/KB)
+        ax.plot(steps_array*utemps, temp_array*EPSILON/KB)
     else:
+        ax.set_xlabel('Simulation time [-]')
         ax.set_ylabel('Temperature [-]')
         ax.plot(steps_array, temp_array)
 
-    plt.legend()
+    fig.savefig('figs/temperature.eps')
 
-    plt.show()
+    plt.close()
 
     return None
 
@@ -56,21 +65,27 @@ def plot_lambda(steps_array, lambda_array) -> None:
 
     fig, ax = plt.subplots()
 
-    ax.set_xlabel('Simulation step')
+    if not RED_UNITS:
+        ax.set_xlabel('Simulation time [ps]')
+        ax.plot(steps_array, lambda_array)
+    else:
+        ax.set_xlabel('Simulation time [ps]')
+        ax.plot(steps_array*utemps, lambda_array)
+    
     ax.set_ylabel('Berendsen Lambda [-]')
 
-    ax.plot(steps_array, lambda_array)
+    
 
-    plt.legend()
+    fig.savefig('figs/b_lambda_t.eps')
 
-    plt.show()
+    plt.close()
 
     return None
 
 def plot_gdr(radi_array, gdr_array) -> None:
 
     fig, ax = plt.subplots()
-    if RED_UNITS:
+    if not RED_UNITS:
         ax.set_xlabel(r'Distance $r$[$\AA$]')
         ax.set_ylabel(r'Radial distribution function, $g(r)$')
         
@@ -81,9 +96,9 @@ def plot_gdr(radi_array, gdr_array) -> None:
         
         ax.plot(radi_array, gdr_array)
 
-    plt.legend()
+    fig.savefig('figs/rdf.eps')
 
-    plt.show()
+    plt.close()
 
     return None
 
