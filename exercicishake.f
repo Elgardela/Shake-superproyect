@@ -74,10 +74,9 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &deltat,taut,lambda)
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
-c
-c         IDEA: afegiu una rutina "shake" aqui...
-c         call shake(nmolecules,r,rpro,rnova,r0)
-c
+
+         call shake(nmolecules, r, rpro, rnova, natoms, deltat, r0, tol)
+         
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
          
@@ -398,7 +397,7 @@ c              subrutina radial distribution
 
          include 'exercicishake.dim'
          dimension r(3,nmax,nmaxmol), rpro(3,nmax,nmaxmol), &
-         rnova(3,3), 
+         rnova(3,3,nmaxmol), 
          dimension rpij(3, 3)
          dimension rij(3, 3)
          dimension lambda_shake(3)
@@ -427,9 +426,9 @@ c              subrutina radial distribution
                   lambda_shake(i_contador_pij) = (rpij_norm - r0**2) / &
                   (8.0d0 * deltat**2 * dot_product(rpij, rij))
                   
-                  rnova(:, iai) = rpro(:, iai, im) + &
+                  rnova(:, iai, im) = rpro(:, iai, im) + &
                   (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
-                  rnova(:, iaj) = rpro(:, iaj, im) + &
+                  rnova(:, iaj, im) = rpro(:, iaj, im) + &
                   (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
 
 
@@ -437,7 +436,7 @@ c              subrutina radial distribution
                   enddo
                enddo
 
-               rpro_p = rnova
+               rpro_p = rnova(:, :, im)
                r12_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 2))**2))
                r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
                r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
@@ -446,6 +445,8 @@ c              subrutina radial distribution
             enddo
             
          enddo
+
+         rpro(:, :, :) = rnova(:, :, :)
             
 
       end subroutine shake
