@@ -391,3 +391,61 @@ c              subrutina radial distribution
          end select
             
       end subroutine g_r
+
+      subroutine shake(nmolecules, r, rpro, rnova, natoms, deltat, r0, tol)
+         implicit double precision(a-h,o-z)
+
+
+         include 'exercicishake.dim'
+         dimension r(3,nmax,nmaxmol), rpro(3,nmax,nmaxmol), &
+         rnova(3,3), 
+         dimension rpij(3, 3)
+         dimension rij(3, 3)
+         dimension lambda_shake(3)
+         dimension rpro_p(3, 3), r_p(3, 3)
+
+         do im = 1, nmolecules
+
+            rpro_p = rpro(:, :, im)
+            r_p = r(:, :, im)
+
+            r12_m = dsqrt(sum((r_p(:, 1) - r_p(:, 2))**2))
+            r13_m = dsqrt(sum((r_p(:, 1) - r_p(:, 3))**2))
+            r23_m = dsqrt(sum((r_p(:, 2) - r_p(:, 3))**2))
+
+            do while ((abs(r12_m**2 - r0**2) .lt. tol) .and.(abs(r13_m**2 - r0**2) .lt. tol) &
+               .and. (abs(r23_m**2 - r0**2) .lt. tol))
+
+               i_contador_pij = 1
+               do iai = 1, natoms - 1
+                  do iaj = iai + 1, natoms
+                  rpij(:, i_contador_pij) = rpro_p(:, iaj) - rpro_p(:, iai)
+                  rij(:, i_contador_pij) = r(:, iaj, im) - r(:, iai, im)
+                  
+                  rpij_norm = dsqrt(sum(rpij**2))
+                  
+                  lambda_shake(i_contador_pij) = (rpij_norm - r0**2) / &
+                  (8.0d0 * deltat**2 * dot_product(rpij, rij))
+                  
+                  rnova(:, iai) = rpro(:, iai, im) + &
+                  (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
+                  rnova(:, iaj) = rpro(:, iaj, im) + &
+                  (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
+
+
+                  i_contador_pij = i_contador_pij + 1
+                  enddo
+               enddo
+
+               rpro_p = rnova
+               r12_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 2))**2))
+               r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
+               r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
+
+
+            enddo
+            
+         enddo
+            
+
+      end subroutine shake
