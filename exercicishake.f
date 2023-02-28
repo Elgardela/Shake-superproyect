@@ -63,7 +63,7 @@ c     4. Expressa les quantitats en unitats reduides
 
 c     5. Comen�a el bucle de la generacio de configuracions 
       open(99, file='thermdata.out', status='replace')
-      write(99,*) ("Iter, ekin, epot, etot, temp, lambda")
+      write(99,*) ("Time, ekin, epot, etot, temp, lambda")
 
       allocate(gr_mat(2,num_bins))
       call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
@@ -74,13 +74,15 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &deltat,taut,lambda)
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
-c
-c         IDEA: afegiu una rutina "shake" aqui...
-c         call shake(nmolecules,r,rpro,rnova,r0)
-c
+
+         call shake(nmolecules, r, rpro, rnova, natoms, deltat, r0, tol)
+         
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
-         write(99,*) (i,ecin,epot,ecin+epot,temperatura,lambda,l=1,1)
+         
+         sim_temps = i*deltat
+
+         write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,lambda
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
      	 
@@ -92,7 +94,7 @@ c     Escriptura g(r)
       write(22,*) ("dr, g(r)")
       call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 3)
       do  j=1,num_bins 
-      write(22,*)  gr_mat(1,j),gr_mat(2,j)
+         write(22,*)  gr_mat(1,j),gr_mat(2,j)
       enddo
       close(22)
       
@@ -129,6 +131,7 @@ c              unitat de temps expressada en ps
 
       rgas = 8.314472673d0 !J/(mol*K) 
       utemps = sigma*dsqrt(massa/epsil)*dsqrt(10.d0/rgas)
+      print *, utemps
       uvel = sigma/utemps !unitat de velocitat expressada en A/ps
 
       costat = costat/sigma
@@ -387,3 +390,63 @@ c              subrutina radial distribution
          end select
             
       end subroutine g_r
+
+      subroutine shake(nmolecules, r, rpro, rnova, natoms, deltat, r0, tol)
+         implicit double precision(a-h,o-z)
+
+
+         include 'exercicishake.dim'
+         dimension r(3,nmax,nmaxmol), rpro(3,nmax,nmaxmol), &
+         rnova(3,3,nmaxmol), 
+         dimension rpij(3, 3)
+         dimension rij(3, 3)
+         dimension lambda_shake(3)
+         dimension rpro_p(3, 3), r_p(3, 3)
+
+         do im = 1, nmolecules
+
+            rpro_p = rpro(:, :, im)
+            r_p = r(:, :, im)
+
+            r12_m = dsqrt(sum((r_p(:, 1) - r_p(:, 2))**2))
+            r13_m = dsqrt(sum((r_p(:, 1) - r_p(:, 3))**2))
+            r23_m = dsqrt(sum((r_p(:, 2) - r_p(:, 3))**2))
+
+            do while ((abs(r12_m**2 - r0**2) .lt. tol) .and.(abs(r13_m**2 - r0**2) .lt. tol) &
+               .and. (abs(r23_m**2 - r0**2) .lt. tol))
+
+               i_contador_pij = 1
+               do iai = 1, natoms - 1
+                  do iaj = iai + 1, natoms
+                  rpij(:, i_contador_pij) = rpro_p(:, iaj) - rpro_p(:, iai)
+                  rij(:, i_contador_pij) = r(:, iaj, im) - r(:, iai, im)
+                  
+                  rpij_norm = dsqrt(sum(rpij**2))
+                  
+                  lambda_shake(i_contador_pij) = (rpij_norm - r0**2) / &
+                  (8.0d0 * deltat**2 * dot_product(rpij, rij))
+                  
+                  rnova(:, iai, im) = rpro(:, iai, im) + &
+                  (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
+                  rnova(:, iaj, im) = rpro(:, iaj, im) + &
+                  (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
+
+
+                  i_contador_pij = i_contador_pij + 1
+                  enddo
+               enddo
+
+               rpro_p = rnova(:, :, im)
+               r12_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 2))**2))
+               r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
+               r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
+
+
+            enddo
+            
+         enddo
+
+         rpro(:, :, :) = rnova(:, :, :)
+            
+
+      end subroutine shake

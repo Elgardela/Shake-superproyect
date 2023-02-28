@@ -11,5 +11,5 @@
 3.ncadenes,temperatura
 4.sigma,epsil(parametres LJ en A i K)
 5.massa
-6.enllas(tamany de l'enllas en A)
+6.enllaç(tamany de l'enllas en A)
 7.nombre bins
