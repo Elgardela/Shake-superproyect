@@ -60,7 +60,7 @@ c     4. Expressa les quantitats en unitats reduides
 
       call reduides(nmolecules,natoms,r,vinf,costat,deltat,
      &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
-
+      tol=0.0000001d0
 c     5. Comen�a el bucle de la generacio de configuracions 
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda")
@@ -75,7 +75,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
 
-         call shake(nmolecules, r, rpro, rnova, natoms, deltat, r0, tol)
+         call shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
@@ -111,6 +111,17 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       write(11,*) costat*sigma
       close(11)
 
+
+      open(33,file='confnova_vmd.data',status='unknown')
+      write(33,*) natoms*nmolecules
+      write(33,*) " "
+      do ic = 1,nmolecules
+         do is = 1,natoms
+            write(33,*) 'A ', (r(l,is,ic)*sigma,l=1,3)
+         end do         
+      end do         
+      write(33,*) costat*sigma
+      close(33)
       stop
       end
 
@@ -131,7 +142,6 @@ c              unitat de temps expressada en ps
 
       rgas = 8.314472673d0 !J/(mol*K) 
       utemps = sigma*dsqrt(massa/epsil)*dsqrt(10.d0/rgas)
-      print *, utemps
       uvel = sigma/utemps !unitat de velocitat expressada en A/ps
 
       costat = costat/sigma
@@ -391,16 +401,15 @@ c              subrutina radial distribution
             
       end subroutine g_r
 
-      subroutine shake(nmolecules, r, rpro, rnova, natoms, deltat, r0, tol)
+      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
          implicit double precision(a-h,o-z)
-
-
+         real*8 :: lambda_shake 
          include 'exercicishake.dim'
-         dimension r(3,nmax,nmaxmol), rpro(3,nmax,nmaxmol), &
-         rnova(3,3,nmaxmol), 
-         dimension rpij(3, 3)
-         dimension rij(3, 3)
-         dimension lambda_shake(3)
+         dimension r(3,nmax,nmaxmol), rpro(3,nmax,nmaxmol)
+         dimension rnova(3,3,nmaxmol)
+         dimension rpij(3)
+         dimension rij(3)
+         
          dimension rpro_p(3, 3), r_p(3, 3)
 
          do im = 1, nmolecules
@@ -408,35 +417,35 @@ c              subrutina radial distribution
             rpro_p = rpro(:, :, im)
             r_p = r(:, :, im)
 
-            r12_m = dsqrt(sum((r_p(:, 1) - r_p(:, 2))**2))
-            r13_m = dsqrt(sum((r_p(:, 1) - r_p(:, 3))**2))
-            r23_m = dsqrt(sum((r_p(:, 2) - r_p(:, 3))**2))
+            r12_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 2))**2))
+            r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
+            r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
 
-            do while ((abs(r12_m**2 - r0**2) .lt. tol) .and.(abs(r13_m**2 - r0**2) .lt. tol) &
-               .and. (abs(r23_m**2 - r0**2) .lt. tol))
-
+            do while ((abs(r12_m**2-r0**2).gt. tol) .and. 
+     &      (abs(r13_m**2-r0**2).gt. tol) .and. (abs(r23_m**2-r0**2)
+     &      .gt. tol))
+            
                i_contador_pij = 1
                do iai = 1, natoms - 1
                   do iaj = iai + 1, natoms
-                  rpij(:, i_contador_pij) = rpro_p(:, iaj) - rpro_p(:, iai)
-                  rij(:, i_contador_pij) = r(:, iaj, im) - r(:, iai, im)
+                  rpij(:) = rpro_p(:, iaj) - rpro_p(:, iai)
+                  rij(:) = r_p(:, iaj) - r_p(:, iai)
                   
-                  rpij_norm = dsqrt(sum(rpij**2))
+                  rpij_norm_sq = (sum(rpij(:)**2))
                   
-                  lambda_shake(i_contador_pij) = (rpij_norm - r0**2) / &
-                  (8.0d0 * deltat**2 * dot_product(rpij, rij))
+                  lambda_shake= (rpij_norm_sq - r0**2)/
+     &            (8.0d0 * deltat**2 * sum(rpij(:)*rij(:)))
                   
-                  rnova(:, iai, im) = rpro(:, iai, im) + &
-                  (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
-                  rnova(:, iaj, im) = rpro(:, iaj, im) + &
-                  (2.0d0 * lambda_shake(i_contador_pij) * deltat**2 * rij(:, i_contador_pij))
-
-
-                  i_contador_pij = i_contador_pij + 1
+                  rnova(:, iai, im) = rpro_p(:, iai)+
+     &            (2.0d0 * lambda_shake* deltat**2 * rij(:))
+                  rnova(:, iaj, im) = rpro_p(:, iaj)-
+     &            (2.0d0 * lambda_shake* deltat**2 * rij(:))
+                  rpro_p(:,iai) = rnova(:, iai, im)
+                  rpro_p(:,iaj) = rnova(:, iaj, im)
                   enddo
                enddo
 
-               rpro_p = rnova(:, :, im)
+               
                r12_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 2))**2))
                r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
                r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
