@@ -33,7 +33,10 @@ def plot_energies(steps_array: np.ndarray, ekin_array, epot_array, etot_array) -
         ax.plot(steps_array, epot_array, label='Epot', color='green')
         ax.plot(steps_array, etot_array, label='Etot', color='black')
 
-    plt.legend()
+    fig.legend()
+    ax.grid(alpha=0.5, linestyle=':')
+
+    fig.tight_layout()
 
     fig.savefig('figs/energy.eps')
     plt.close()
@@ -42,21 +45,25 @@ def plot_energies(steps_array: np.ndarray, ekin_array, epot_array, etot_array) -
 
 def plot_temperature(steps_array, temp_array) -> None:
 
-    fig, ax = plt.subplots()
+    N: int = 110
 
-    
+    fig, ax = plt.subplots()
 
     if not RED_UNITS:
         ax.set_xlabel('Simulation time [ps]')
         ax.set_ylabel('Temperature [K]')
         ax.plot(steps_array*utemps, temp_array*EPSILON/KB)
+        ax.plot(steps_array*utemps, np.convolve(temp_array*EPSILON/KB, np.ones(N)/N, mode='same'))
     else:
         ax.set_xlabel('Simulation time [-]')
         ax.set_ylabel('Temperature [-]')
         ax.plot(steps_array, temp_array)
 
-    fig.savefig('figs/temperature.eps')
+    ax.set_ylim([210., 240.])
+    ax.grid(alpha=0.5, linestyle=':')
+    fig.tight_layout()
 
+    fig.savefig('figs/temperature.eps')
     plt.close()
 
     return None
@@ -74,10 +81,10 @@ def plot_lambda(steps_array, lambda_array) -> None:
     
     ax.set_ylabel('Berendsen Lambda [-]')
 
+    ax.grid(alpha=0.5, linestyle=':')
+    fig.tight_layout()
     
-
     fig.savefig('figs/b_lambda_t.eps')
-
     plt.close()
 
     return None
@@ -95,6 +102,11 @@ def plot_gdr(radi_array, gdr_array) -> None:
         ax.set_ylabel(r'Radial distribution function, $g(r)$')
         
         ax.plot(radi_array, gdr_array)
+
+    ax.grid(alpha=0.5, linestyle=':')
+    ax.axhline(y=1.0, linestyle='--', linewidth=0.5, color='black')
+
+    fig.tight_layout()
 
     fig.savefig('figs/rdf.eps')
 
