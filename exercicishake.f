@@ -62,7 +62,7 @@ c     4. Expressa les quantitats en unitats reduides
      &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
       tol=0.0000001d0
 c     5. Comen�a el bucle de la generacio de configuracions 
-      open(99, file='thermdata.out', status='replace')
+      open(99, file='thermdata_withoutSHAKE.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda")
 
       allocate(gr_mat(2,num_bins))
@@ -75,7 +75,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
 
-         call shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
+         !call shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
@@ -90,7 +90,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
       close(99)
 
 c     Escriptura g(r)
-      open(22, file='radial_func.out', status='replace')
+      open(22, file='radial_func_withoutSHAKE.out', status='replace')
       write(22,*) ("dr, g(r)")
       call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 3)
       do  j=1,num_bins 
@@ -101,7 +101,7 @@ c     Escriptura g(r)
       
 c     5. Escriptura de la darrera configuracio en A i A/ps 
 
-      open(11,file='confnova.data',status='unknown')
+      open(11,file='confnova_withoutSHAKE.data',status='unknown')
       do ic = 1,nmolecules
          do is = 1,natoms
             write(11,*) (r(l,is,ic)*sigma,l=1,3)
@@ -112,7 +112,7 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       close(11)
 
 
-      open(33,file='confnova_vmd.data',status='unknown')
+      open(33,file='confnova_vmd_withoutSHAKE.data',status='unknown')
       write(33,*) natoms*nmolecules
       write(33,*) " "
       do ic = 1,nmolecules
@@ -120,7 +120,6 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
             write(33,*) 'A ', (r(l,is,ic)*sigma,l=1,3)
          end do         
       end do         
-      write(33,*) costat*sigma
       close(33)
       stop
       end
