@@ -17,7 +17,8 @@
 
       implicit double precision(a-h,o-z)
       double precision massa,lambda
-      real*8,dimension(:,:), allocatable::gr_mat
+      real*8,dimension(:,:), allocatable    :: gr_mat
+      integer, dimension(:, :), allocatable :: i_array_iter_shake
       include 'exercicishake.dim'
 
 c     1. Dimensionament de magnituds.
@@ -39,6 +40,8 @@ c     2. Lectura de dades i calcul de quantitats relacionades
          read(1,*) r0
          read(1,*) num_bins
       close(1)
+
+      allocate(i_array_iter_shake(nconf, nmolecules))
 
       natoms = 3
       nf = 6*nmolecules-3 !nombre de graus de 
@@ -75,7 +78,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
 
-         call shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
+         call shake(nmolecules, r, rpro, natoms, deltat, r0, tol, i_array_iter_shake(i,:))
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
@@ -97,6 +100,16 @@ c     Escriptura g(r)
          write(22,*)  gr_mat(1,j),gr_mat(2,j)
       enddo
       close(22)
+
+c     Escriptura del numero d'iteracions per convergir en SHAKE
+      open(23, file='SHAKE_iters.out', status='replace')
+      do is = 1, size(i_array_iter_shake, dim=1)
+         do im = 1, size(i_array_iter_shake, dim=2)
+            write(23, '(I3)', advance='no') i_array_iter_shake(is, im)
+         enddo
+         write(23, '(A)') ''
+      enddo
+      close(23)
       
       
 c     5. Escriptura de la darrera configuracio en A i A/ps 
@@ -122,6 +135,7 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       end do         
       write(33,*) costat*sigma
       close(33)
+      
       stop
       end
 
@@ -401,7 +415,13 @@ c              subrutina radial distribution
             
       end subroutine g_r
 
-      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
+*********************************************************
+*********************************************************
+c              subrutina SHAKE
+*********************************************************
+*********************************************************
+
+      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol, iter_converge)
          implicit double precision(a-h,o-z)
          real*8 :: lambda_shake 
          include 'exercicishake.dim'
@@ -409,8 +429,11 @@ c              subrutina radial distribution
          dimension rnova(3,3,nmaxmol)
          dimension rpij(3)
          dimension rij(3)
+         dimension iter_converge(nmolecules)
          
          dimension rpro_p(3, 3), r_p(3, 3)
+
+         iter_converge(:) = 0
 
          do im = 1, nmolecules
 
@@ -450,7 +473,7 @@ c              subrutina radial distribution
                r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
                r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
 
-
+               iter_converge(im) = iter_converge(im) + 1
             enddo
             
          enddo
