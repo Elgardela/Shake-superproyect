@@ -18,6 +18,7 @@
       implicit double precision(a-h,o-z)
       double precision massa,lambda
       real*8,dimension(:,:), allocatable    :: gr_mat
+      double precision,dimension(:,:), allocatable :: gr_mat_cm
       integer, dimension(:, :), allocatable :: i_array_iter_shake
       include 'exercicishake.dim'
 
@@ -39,6 +40,7 @@ c     2. Lectura de dades i calcul de quantitats relacionades
          read(1,*) massa
          read(1,*) r0
          read(1,*) num_bins
+         read(1,*) tol
       close(1)
 
       allocate(i_array_iter_shake(nconf, nmolecules))
@@ -62,14 +64,16 @@ c     3. Lectura de la configuracio anterior en A i A/ps
 c     4. Expressa les quantitats en unitats reduides
 
       call reduides(nmolecules,natoms,r,vinf,costat,deltat,
-     &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
-      tol=0.0000001d0
+     &       taut,tempref,epsil,sigma,massa,r0,uvel,utemps,tol)
+
 c     5. Comen�a el bucle de la generacio de configuracions 
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda")
 
       allocate(gr_mat(2,num_bins))
+      allocate(gr_mat_cm(2,num_bins))
       call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
+      call g_r_cm(nmolecules,natoms,gr_mat_cm, r, num_bins, costat, 1)
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -89,6 +93,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,lambda
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
+         call g_r_cm(nmolecules,natoms,gr_mat_cm,r,num_bins,costat,2)
      	 
       end do
       close(99)
@@ -102,15 +107,25 @@ c     Escriptura g(r)
       enddo
       close(22)
 
-c     Escriptura del numero d'iteracions per convergir en SHAKE
-      open(23, file='SHAKE_iters.out', status='replace')
-      do is = 1, size(i_array_iter_shake, dim=1)
-         do im = 1, size(i_array_iter_shake, dim=2)
-            write(23, '(I3)', advance='no') i_array_iter_shake(is, im)
-         enddo
-         write(23, '(A)') ''
+c     Escriptura g_cm(r)
+      open(23, file='radial_func_cm.out', status='replace')
+      write(23,*) ("dr, g(r)")
+      call g_r_cm(nmolecules, natoms,gr_mat_cm, r, num_bins, costat, 3)
+      do  j=1,num_bins 
+         write(23,*)  gr_mat_cm(1,j),gr_mat_cm(2,j)
       enddo
       close(23)
+
+c     Escriptura del numero d'iteracions per convergir en SHAKE
+      open(24, file='SHAKE_iters.out', status='replace')
+      write(24, *) tol*sigma
+      do is = 1, size(i_array_iter_shake, dim=1)
+         do im = 1, size(i_array_iter_shake, dim=2)
+            write(24, '(I3)', advance='no') i_array_iter_shake(is, im)
+         enddo
+         write(24, '(A)') ''
+      enddo
+      close(24)
       
       
 c     5. Escriptura de la darrera configuracio en A i A/ps 
@@ -137,6 +152,8 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       write(33,*) costat*sigma
       close(33)
       
+      deallocate(i_array_iter_shake,gr_mat,gr_mat_cm)
+
       stop
       end
 
@@ -147,7 +164,7 @@ c              subrutina reduides
 *********************************************************
 
       subroutine reduides(nmolecules,natoms,r,vinf,costat,deltat,
-     &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
+     &taut,tempref,epsil,sigma,massa,r0,uvel,utemps,tol)
       implicit double precision(a-h,o-z)
       double precision massa
       include 'exercicishake.dim'
@@ -161,6 +178,7 @@ c              unitat de temps expressada en ps
 
       costat = costat/sigma
       r0 = r0/sigma
+      tol = tol/sigma
       deltat = deltat/utemps
       taut = taut/utemps
       tempref = tempref/epsil
@@ -415,6 +433,73 @@ c              subrutina radial distribution
          end select
             
       end subroutine g_r
+
+*********************************************************
+*********************************************************
+c    subrutina radial distribution of center of mass
+*********************************************************
+*********************************************************
+      
+      subroutine g_r_cm(nmolecules, natoms,gr_mat_cm, r, num_bins, 
+     &box_size, switch_case)
+         
+         implicit double precision(a-h,o-z)
+         integer, intent(in)      :: switch_case
+         real*8, parameter        :: pi = 4.d0 * datan(1.d0)
+         integer, save            :: index_mat,total_part, n_gdr
+         real*8, save             :: dr, dist, dv, ndg, dens
+         include 'exercicishake.dim'
+         dimension r(3,nmax,nmaxmol), gr_mat_cm(2,num_bins), rij(3)
+         dimension cmi(3), cmj(3)
+         
+         
+         select case (switch_case)
+            case (1)
+               ! SWITCH 1 => Memmory initialization
+               n_gdr = 0
+            
+               dr = box_size / (2.d0*dble(num_bins))
+               dens = dble(nmolecules) / (box_size ** 3)
+
+               gr_mat_cm(1,:) = [(dble(i)*dr, i=1, num_bins)]
+               gr_mat_cm(2,:) = 0.d0
+            
+            case (2)
+               ! SWITCH 2 => Positions binning
+               n_gdr = n_gdr + 1
+
+               do ic = 1,nmolecules-1
+                  cmi(:) = sum(r(:,:,ic)) / 3.0d0
+                  do jc = ic+1,nmolecules
+                     cmi(:) = sum(r(:,:,jc)) / 3.0d0
+                     
+                     rij = cmj - cmi
+                     rij = rij - box_size*dnint(rij/box_size)
+
+                     dist=dsqrt(sum(rij**2))
+                     if (dist .lt. box_size/2.d0) then
+                        index_mat = int(dist/dr) + 1
+                        gr_mat_cm(2,index_mat) = 
+     &                  gr_mat_cm(2,index_mat) + 2.d0
+                     endif
+                  enddo
+               enddo
+
+            case (3)
+               ! SWITCH = 3 => Normalization of g(r)
+                  
+               do i = 1, num_bins
+                  associate(gdr => gr_mat_cm(2,i))
+                     dv = (((dble(i) + 1.d0)**3)-(dble(i)**3))*(dr**3)
+                     ndg = (4.d0/ 3.d0) * pi * dv * dens
+                  
+                     gdr = gdr / (dble(nmolecules) * ndg * dble(n_gdr))
+                  end associate
+               end do
+                  
+            end select
+               
+         end subroutine g_r_cm
 
 *********************************************************
 *********************************************************
