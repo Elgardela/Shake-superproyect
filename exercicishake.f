@@ -19,6 +19,7 @@
       double precision massa,lambda
       real*8,dimension(:,:), allocatable    :: gr_mat
       double precision,dimension(:,:), allocatable :: gr_mat_cm
+      double precision,dimension(:,:), allocatable :: gr_mat_atm
       integer, dimension(:, :), allocatable :: i_array_iter_shake
       include 'exercicishake.dim'
 
@@ -72,8 +73,10 @@ c     5. Comen�a el bucle de la generacio de configuracions
 
       allocate(gr_mat(2,num_bins))
       allocate(gr_mat_cm(2,num_bins))
+      allocate(gr_mat_atm(2,num_bins))
       call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
       call g_r_cm(nmolecules,natoms,gr_mat_cm, r, num_bins, costat, 1)
+      call g_r_atm(nmolecules,natoms,gr_mat_atm, r, num_bins, costat, 1)
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -94,6 +97,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
          call g_r_cm(nmolecules,natoms,gr_mat_cm,r,num_bins,costat,2)
+         call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
      	 
       end do
       close(99)
@@ -101,20 +105,14 @@ c     5. Comen�a el bucle de la generacio de configuracions
 c     Escriptura g(r)
       open(22, file='radial_func.out', status='replace')
       write(22,*) ("dr, g(r)")
-      call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 3)
+      call g_r(nmolecules, natoms,gr_mat,r,num_bins,costat,3)
+      call g_r_cm(nmolecules,natoms,gr_mat_cm,r,num_bins,costat,3)
+      call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,3)
       do  j=1,num_bins 
-         write(22,*)  gr_mat(1,j),gr_mat(2,j)
+         write(22,*)  gr_mat(1,j),gr_mat(2,j),gr_mat_cm(2,j),
+     &   gr_mat_atm(2,j)
       enddo
       close(22)
-
-c     Escriptura g_cm(r)
-      open(23, file='radial_func_cm.out', status='replace')
-      write(23,*) ("dr, g(r)")
-      call g_r_cm(nmolecules, natoms,gr_mat_cm, r, num_bins, costat, 3)
-      do  j=1,num_bins 
-         write(23,*)  gr_mat_cm(1,j),gr_mat_cm(2,j)
-      enddo
-      close(23)
 
 c     Escriptura del numero d'iteracions per convergir en SHAKE
       open(24, file='SHAKE_iters.out', status='replace')
@@ -126,7 +124,6 @@ c     Escriptura del numero d'iteracions per convergir en SHAKE
          write(24, '(A)') ''
       enddo
       close(24)
-      
       
 c     5. Escriptura de la darrera configuracio en A i A/ps 
 
@@ -364,11 +361,97 @@ c       la posicio l'instant t + deltat.
       return
       end
       
+*********************************************************
+*********************************************************
+c     subrutina radial distribution atomos solos
+*********************************************************
+*********************************************************
       
+      subroutine g_r_atm(nmolecules, natoms,gr_mat_atm, r, num_bins, 
+     &   box_size, switch_case)
+         
+         implicit double precision(a-h,o-z)
+         integer, intent(in)      :: switch_case
+         real*8, parameter        :: pi = 4.d0 * datan(1.d0)
+         integer, save            :: index_mat,total_part, n_gdr
+         real*8, save             :: dr, dist, dv, ndg, dens
+         include 'exercicishake.dim'
+         dimension r(3,nmax,nmaxmol), gr_mat_atm(2,num_bins), rij(3)
+         
+         
+         select case (switch_case)
+            case (1)
+               ! SWITCH 1 => Memmory initialization
+               n_gdr = 0
+               total_part=natoms*nmolecules
+            
+               dr = box_size / (2.d0*dble(num_bins))
+               dens = dble(total_part) / (box_size ** 3)
+
+               gr_mat_atm(1,:) = [(dble(i)*dr, i=1, num_bins)]
+               gr_mat_atm(2,:) = 0.d0
+            
+            case (2)
+               ! SWITCH 2 => Positions binning
+               n_gdr = n_gdr + 1
+               
+               ! Cae of atoms with other molecules
+               do ic = 1,nmolecules-1
+                  do is = 1,natoms
+                     do jc = ic+1,nmolecules
+                        do js = 1,natoms
+                           rij(:) = r(:,js,jc)-r(:,is,ic)
+                           rij = rij - box_size*dnint(rij/box_size)
+            
+                           dist=dsqrt(sum(rij**2))
+                           ! Apliquem el cutoff de maxima distancia
+                           if (dist .lt. box_size/2.d0) then
+                              index_mat = int(dist/dr) + 1
+                              gr_mat_atm(2,index_mat) = 
+     &                        gr_mat_atm(2,index_mat) + 2.d0
+                           end if
+                        end do
+                     end do
+                  end do
+               end do
+
+               ! Case with atoms of the same molecule
+               do ic = 1, nmolecules
+                  do is = 1, natoms-1
+                     do js = is + 1, natoms
+                        rij(:) = r(:,ic,js) - r(:,ic,is)
+                        rij = rij - box_size*dnint(rij/box_size)
+            
+                        dist=dsqrt(sum(rij**2))
+                        ! Apliquem el cutoff de maxima distancia
+                        if (dist .lt. box_size/2.d0) then
+                           index_mat = int(dist/dr) + 1
+                           gr_mat_atm(2,index_mat) = 
+     &                     gr_mat_atm(2,index_mat) + 2.d0
+                        endif
+                     enddo
+                  enddo
+               enddo
+
+            case (3)
+               ! SWITCH = 3 => Normalization of g(r)
+                  
+               do i = 1, num_bins
+                  associate(gdr => gr_mat_atm(2,i))
+                     dv = (((dble(i) + 1.d0)**3)-(dble(i)**3))*(dr**3)
+                     ndg = (4.d0/ 3.d0) * pi * dv * dens
+                  
+                     gdr = gdr / (dble(total_part) * ndg * dble(n_gdr))
+                  end associate
+               end do
+                  
+            end select
+               
+         end subroutine g_r_atm
       
 *********************************************************
 *********************************************************
-c              subrutina radial distribution
+c     subrutina radial distribution atomos vecinos
 *********************************************************
 *********************************************************
       
@@ -566,6 +649,4 @@ c              subrutina SHAKE
          enddo
 
          rpro(:, :, :) = rnova(:, :, :)
-            
-
       end subroutine shake
