@@ -78,7 +78,8 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
 
-         call shake(nmolecules, r, rpro, natoms, deltat, r0, tol, i_array_iter_shake(i,:))
+         call shake(nmolecules, r, rpro, natoms, deltat, r0, 
+     &tol, i_array_iter_shake(i,:))
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
@@ -421,7 +422,8 @@ c              subrutina SHAKE
 *********************************************************
 *********************************************************
 
-      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol, iter_converge)
+      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, 
+     & tol, iter_converge)
          implicit double precision(a-h,o-z)
          real*8 :: lambda_shake 
          include 'exercicishake.dim'
