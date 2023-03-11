@@ -17,13 +17,12 @@
 
       implicit double precision(a-h,o-z)
       double precision massa,lambda
-      real*8,dimension(:,:), allocatable::gr_mat
+      real*8,dimension(:,:), allocatable::gr_mat, r_sum
       include 'exercicishake.dim'
 
 c     1. Dimensionament de magnituds.
 
-      dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol),
-     &rnova(3,nmax,nmaxmol)
+      dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol)
       dimension vinf(3,nmax,nmaxmol)
       dimension accel(3,nmax,nmaxmol)
 
@@ -62,11 +61,13 @@ c     4. Expressa les quantitats en unitats reduides
      &taut,tempref,epsil,sigma,massa,r0,uvel,utemps)
       tol=0.0000001d0
 c     5. Comen�a el bucle de la generacio de configuracions 
-      open(99, file='thermdata_withoutSHAKE.out', status='replace')
-      write(99,*) ("Time, ekin, epot, etot, temp, lambda")
+      open(99, file='thermdata.out', status='replace')
+      write(99,*) ("Time, ekin, epot, etot, temp, lambda,
+     & mean iter SHAKE")
 
-      allocate(gr_mat(2,num_bins))
+      allocate(gr_mat(2,num_bins), r_sum(natoms, nmolecules))
       call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
+      call dist_atomic(natoms, nmolecules,r, r_sum,sigma, 1)
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -75,33 +76,37 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call velpospro(nmolecules,natoms,vinf,accel,deltat,lambda,
      &r,rpro)
 
-         !call shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
+         call shake(nmolecules, r, rpro, natoms, deltat, r0, tol,
+     &times_mean)
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
          
          sim_temps = i*deltat
 
-         write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,lambda
+         write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,
+     &lambda, times_mean
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
+         call dist_atomic(natoms, nmolecules,r,r_sum,sigma, 2)
      	 
       end do
       close(99)
 
 c     Escriptura g(r)
-      open(22, file='radial_func_withoutSHAKE.out', status='replace')
+      open(22, file='radial_func.out', status='replace')
       write(22,*) ("dr, g(r)")
       call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 3)
       do  j=1,num_bins 
          write(22,*)  gr_mat(1,j),gr_mat(2,j)
       enddo
       close(22)
+      call dist_atomic(natoms, nmolecules,r,r_sum,sigma, 3)
       
       
 c     5. Escriptura de la darrera configuracio en A i A/ps 
 
-      open(11,file='confnova_withoutSHAKE.data',status='unknown')
+      open(11,file='confnova.data',status='unknown')
       do ic = 1,nmolecules
          do is = 1,natoms
             write(11,*) (r(l,is,ic)*sigma,l=1,3)
@@ -112,7 +117,7 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       close(11)
 
 
-      open(33,file='confnova_vmd_withoutSHAKE.data',status='unknown')
+      open(33,file='confnova_vmd.data',status='unknown')
       write(33,*) natoms*nmolecules
       write(33,*) " "
       do ic = 1,nmolecules
@@ -400,7 +405,8 @@ c              subrutina radial distribution
             
       end subroutine g_r
 
-      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
+      subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol,
+     & times_mean)
          implicit double precision(a-h,o-z)
          real*8 :: lambda_shake 
          include 'exercicishake.dim'
@@ -411,6 +417,7 @@ c              subrutina radial distribution
          
          dimension rpro_p(3, 3), r_p(3, 3)
 
+         ntimes=0
          do im = 1, nmolecules
 
             rpro_p = rpro(:, :, im)
@@ -449,6 +456,7 @@ c              subrutina radial distribution
                r13_m = dsqrt(sum((rpro_p(:, 1) - rpro_p(:, 3))**2))
                r23_m = dsqrt(sum((rpro_p(:, 2) - rpro_p(:, 3))**2))
 
+               ntimes = ntimes+1
 
             enddo
             
@@ -456,5 +464,68 @@ c              subrutina radial distribution
 
          rpro(:, :, :) = rnova(:, :, :)
             
-
+         times_mean = dble(ntimes)/dble(nmolecules)
       end subroutine shake
+
+      subroutine dist_atomic(natoms, nmolecules,r,r_sum, sigma,
+     &switch_case)
+         implicit double precision(a-h,o-z)
+         integer, intent(in)      :: switch_case
+         integer, save            :: ntimes
+         real*8                   :: r_sum
+
+         include 'exercicishake.dim'
+         dimension r(3,nmax,nmaxmol),r_sum(natoms, nmolecules)
+         dimension r_aux(natoms, nmolecules), std(nmolecules)
+         dimension dist_mean(nmolecules)
+
+         select case (switch_case)
+            case (1)
+               ntimes = 0
+               r_sum = 0.d0
+               std = 0.d0
+               mean= 0.d0
+
+            case (2)
+               ntimes = ntimes+1
+               do imol = 1, nmolecules
+                  index=1
+                  do i= 1,natoms-1
+                     do j= i+1, natoms
+                        rij = dsqrt(sum(((r(:,j, imol)-
+     &                  r(:,i, imol))**2)))
+                        
+                        r_sum(index, imol)= r_sum(index, imol)+rij
+                        index = index + 1
+                     enddo
+                  enddo
+               enddo
+
+            case (3)
+               r_aux = r_sum(:, :)/dble(ntimes)
+               dist_mean = sum(r_aux(:,:), dim=1)/3.d0
+
+               do imol = 1,nmolecules
+                  do j=1, natoms
+                     std(imol)= std(imol) + (dist_mean(imol)
+     &               -r_aux(j, imol))**2
+                  enddo
+               enddo
+               std(:) = dsqrt(1.d0/dble(natoms)*dble(std(:)))
+               
+               
+               open(44, file= 'distance_atoms.data', status='replace'
+     &         , action='write')
+               write(44, *) ("n molecule, bond lenght (mean)
+     &         , standart deviation")
+               do imol=1, nmolecules
+                  write(44, *) imol, dist_mean(imol), std(imol)
+               enddo
+
+               close(44)
+
+            end select
+
+
+
+      end subroutine dist_atomic

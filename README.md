@@ -1,7 +1,7 @@
 # Tareas
 
-- [ ] Calcular distancias entre atomos de un mismo triangulo durante la trayectoria y evaluar el error. (E)
-- [ ] Calcular numero de iteraciones promedio del SHAKE para converger (M)
+- [x] Calcular distancias entre atomos de un mismo triangulo durante la trayectoria y evaluar el error. (E)
+- [x] Calcular numero de iteraciones promedio del SHAKE para converger (M)
 - [ ] Evaluar como varia el nº de iteraciones con la tolerancia (M)
 - [ ] Calcular g(r) de los centros de masas de cada triangulo (M)
 - [ ] Calcular g(r) de las particulas solas (M)
