@@ -419,7 +419,7 @@ c     subrutina radial distribution atomos solos
                do ic = 1, nmolecules
                   do is = 1, natoms-1
                      do js = is + 1, natoms
-                        rij(:) = r(:,ic,js) - r(:,ic,is)
+                        rij(:) = r(:,js,ic) - r(:,is,ic)
                         rij = rij - box_size*dnint(rij/box_size)
             
                         dist=dsqrt(sum(rij**2))
@@ -552,9 +552,13 @@ c    subrutina radial distribution of center of mass
                n_gdr = n_gdr + 1
 
                do ic = 1,nmolecules-1
-                  cmi(:) = sum(r(:,:,ic)) / 3.0d0
+                  cmi(1) = sum(r(1,:,ic)) / 3.0d0
+                  cmi(2) = sum(r(2,:,ic)) / 3.0d0
+                  cmi(3) = sum(r(3,:,ic)) / 3.0d0
                   do jc = ic+1,nmolecules
-                     cmi(:) = sum(r(:,:,jc)) / 3.0d0
+                     cmi(1) = sum(r(1,:,jc)) / 3.0d0
+                     cmi(2) = sum(r(2,:,jc)) / 3.0d0
+                     cmi(3) = sum(r(3,:,jc)) / 3.0d0
                      
                      rij = cmj - cmi
                      rij = rij - box_size*dnint(rij/box_size)

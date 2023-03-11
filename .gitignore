@@ -1,3 +1,5 @@
 confnova.data
 thermdata.out
 a.out
+SHAKE_iters.out
+figs/*.eps

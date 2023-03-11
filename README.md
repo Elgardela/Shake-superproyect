@@ -1,11 +1,11 @@
 # Tareas
 
 - [ ] Calcular distancias entre atomos de un mismo triangulo durante la trayectoria y evaluar el error. (E)
-- [ ] Calcular numero de iteraciones promedio del SHAKE para converger (M)
-- [ ] Evaluar como varia el nº de iteraciones con la tolerancia (M)
-- [ ] Calcular g(r) de los centros de masas de cada triangulo (M)
+- [x] Calcular numero de iteraciones promedio del SHAKE para converger (M)
+- [x] Evaluar como varia el nº de iteraciones con la tolerancia (M)
+- [x] Calcular g(r) de los centros de masas de cada triangulo (M)
 - [ ] Calcular g(r) de las particulas solas (M)
-- [ ] Calcular g(r) de las particulas vecinas (moleculas vecinas) (M)
+- [x] Calcular g(r) de las particulas vecinas (moleculas vecinas) (M)
 - [ ] Histograma de distancias entre particulas de una molecula (E)
 - [ ] Evaluar torque con histogramas de todos los frames y todas las moleculas (E)
 - [ ] Evaluar la evolucion temporal del torque de una molecula (E)
