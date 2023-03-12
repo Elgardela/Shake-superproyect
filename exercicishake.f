@@ -17,7 +17,8 @@
 
       implicit double precision(a-h,o-z)
       double precision massa,lambda
-      real*8,dimension(:,:), allocatable::gr_mat, r_sum
+      real*8,dimension(:,:), allocatable::gr_mat
+      real*8,dimension(:,:), allocatable:: r_sum
       double precision,dimension(:,:), allocatable :: gr_mat_cm
       double precision,dimension(:,:), allocatable :: gr_mat_atm
       integer, dimension(:, :), allocatable :: i_array_iter_shake
@@ -67,12 +68,24 @@ c     4. Expressa les quantitats en unitats reduides
      &       taut,tempref,epsil,sigma,massa,r0,uvel,utemps,tol)
 
 c     5. Comen�a el bucle de la generacio de configuracions 
+      open(111, file='torque.data',status='replace', action='write')
+      write(111,*) ('#Modulo torque para cada molécula (filas) para 
+     &cada tiempo (columnas)')
+      close(111)
+
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda,
-     & mean iter SHAKE")
+     &mean iter SHAKE")
 
       allocate(gr_mat(2,num_bins))
+      allocate(gr_mat_cm(2,num_bins))
+      allocate(gr_mat_atm(2,num_bins))
       call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
+      call g_r_cm(nmolecules,natoms,gr_mat_cm, r, num_bins, costat, 1)
+      call g_r_atm(nmolecules,natoms,gr_mat_atm, r, num_bins, costat, 1)
+      
+      allocate( r_sum(natoms, nmolecules))
+      call dist_atomic(natoms, nmolecules,r,r_sum, 1)
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -82,7 +95,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &r,rpro)
 
          call shake(nmolecules, r, rpro, natoms, deltat, r0, 
-         &tol, i_array_iter_shake(i,:))
+     &tol, i_array_iter_shake(i,:))
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
      &temperatura,nf,ecin)
@@ -90,12 +103,13 @@ c     5. Comen�a el bucle de la generacio de configuracions
          sim_temps = i*deltat
 
          write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,
-     &lambda, times_mean
+     &lambda
          
          call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
          call g_r_cm(nmolecules,natoms,gr_mat_cm,r,num_bins,costat,2)
          call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
-         call dist_atomic(natoms, nmolecules,r,r_sum,sigma, 2)
+         call dist_atomic(natoms, nmolecules,r,r_sum, 2)
+         call torque_calc(natoms, nmolecules, r, accel)
      	 
       end do
       close(99)
@@ -111,6 +125,7 @@ c     Escriptura g(r)
      &   gr_mat_atm(2,j)
       enddo
       close(22)
+      call dist_atomic(natoms, nmolecules,r,r_sum, 3)
 
 c     Escriptura del numero d'iteracions per convergir en SHAKE
       open(24, file='SHAKE_iters.out', status='replace')
@@ -146,7 +161,7 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       end do         
       close(33)
       
-      deallocate(i_array_iter_shake,gr_mat,gr_mat_cm)
+      deallocate(i_array_iter_shake,gr_mat,gr_mat_cm, r_sum)
 
       stop
       end
@@ -657,8 +672,7 @@ c              subrutina SHAKE
 
       end subroutine shake
 
-      subroutine dist_atomic(natoms, nmolecules,r,r_sum, sigma,
-     &switch_case)
+      subroutine dist_atomic(natoms, nmolecules,r,r_sum,switch_case)
          implicit double precision(a-h,o-z)
          integer, intent(in)      :: switch_case
          integer, save            :: ntimes
@@ -719,3 +733,47 @@ c              subrutina SHAKE
 
 
       end subroutine dist_atomic
+
+      subroutine torque_calc(natoms, nmolecules, r, accel)
+         implicit double precision(a-h,o-z)
+         double precision ,dimension(3) :: lever_arm
+         include 'exercicishake.dim'
+         dimension accel(3,nmax,nmaxmol),r(3,nmax,nmaxmol), cm(3)
+         dimension tor(3,natoms), torque(3)
+         dimension torque_norm(nmolecules), cross_prod(3)
+
+         do imol = 1, nmolecules
+            cm= sum(r(:,:,imol), dim=2)/3.d0
+            do i=1, natoms
+               lever_arm(:)= r(:, i, imol)- cm(:)
+               call cross_product(accel(:, i, imol), lever_arm, 
+     &         cross_prod)
+               tor(:,i)=cross_prod
+            enddo
+
+            torque(:) = sum(tor, dim=2)
+            torque_norm(imol) = dsqrt(sum(torque(:)**2))
+         enddo
+         open(111, file='torque.data',status='unknown',
+     &   access='append', action="write")
+         
+         write(111,*) (torque_norm(imol), imol=1,nmolecules )
+         close(111)
+      end subroutine torque_calc
+
+
+      subroutine cross_product(vec1, vec2, cross_prod)
+         implicit double precision(a-h,o-z)
+         double precision, dimension(3), intent(in) :: vec1,vec2
+         double precision, dimension(3), intent(out) :: cross_prod
+
+         m=3
+         do i=1, 2
+            do j=i+1,3
+               cross_prod(m) = (-1.d0)**(m+1)*(vec1(i) * vec2(j) -
+     &          vec1(j) * vec2(i))
+               m = m-1
+            enddo
+         enddo
+      end subroutine cross_product
+
