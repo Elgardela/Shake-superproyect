@@ -27,7 +27,7 @@
 c     1. Dimensionament de magnituds.
 
       dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol)
-      dimension vinf(3,nmax,nmaxmol)
+      dimension vinf(3,nmax,nmaxmol), v(3,nmax,nmaxmol)
       dimension accel(3,nmax,nmaxmol)
 
 
@@ -73,6 +73,11 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &cada tiempo (columnas)')
       close(111)
 
+      open(111, file='angular_mom.data',status='replace', action='write')
+      write(111,*) ('#Modulo momento angular para cada  
+     &molécula (filas) para cada tiempo (columnas)')
+      close(111)
+
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda,
      &mean iter SHAKE")
@@ -98,7 +103,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &tol, i_array_iter_shake(i,:))
          
          call velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
-     &temperatura,nf,ecin)
+     &temperatura,nf,ecin,v)
          
          sim_temps = i*deltat
 
@@ -110,13 +115,14 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
          call dist_atomic(natoms, nmolecules,r,r_sum, 2)
          call torque_calc(natoms, nmolecules, r, accel)
+         call angular_calc(natoms, nmolecules, r, v)
      	 
       end do
       close(99)
 
 c     Escriptura g(r)
       open(22, file='radial_func.out', status='replace')
-      write(22,*) ("dr, g(r)")
+      write(22,*) ("dr, g(r), g_atom(r), g_cm(r)")
       call g_r(nmolecules, natoms,gr_mat,r,num_bins,costat,3)
       call g_r_cm(nmolecules,natoms,gr_mat_cm,r,num_bins,costat,3)
       call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,3)
@@ -156,7 +162,7 @@ c     5. Escriptura de la darrera configuracio en A i A/ps
       write(33,*) " "
       do ic = 1,nmolecules
          do is = 1,natoms
-            write(33,*) 'A ', (r(l,is,ic)*sigma,l=1,3)
+            write(33,*) 'Ar ', (r(l,is,ic)*sigma,l=1,3)
          end do         
       end do         
       close(33)
@@ -348,7 +354,7 @@ c       Calcul de la velocitat als instants t+delta/2 i t i
 c       la posicio l'instant t + deltat.
 
       subroutine velocitat(nmolecules,natoms,r,rpro,deltat,vinf,
-     &temperatura,nf,ecin)
+     &temperatura,nf,ecin,v)
       implicit double precision(a-h,o-z)
       include 'exercicishake.dim'
       dimension v(3,nmax,nmaxmol),vinf(3,nmax,nmaxmol),
@@ -568,9 +574,9 @@ c    subrutina radial distribution of center of mass
                   cmi(2) = sum(r(2,:,ic)) / 3.0d0
                   cmi(3) = sum(r(3,:,ic)) / 3.0d0
                   do jc = ic+1,nmolecules
-                     cmi(1) = sum(r(1,:,jc)) / 3.0d0
-                     cmi(2) = sum(r(2,:,jc)) / 3.0d0
-                     cmi(3) = sum(r(3,:,jc)) / 3.0d0
+                     cmj(1) = sum(r(1,:,jc)) / 3.0d0
+                     cmj(2) = sum(r(2,:,jc)) / 3.0d0
+                     cmj(3) = sum(r(3,:,jc)) / 3.0d0
                      
                      rij = cmj - cmi
                      rij = rij - box_size*dnint(rij/box_size)
@@ -761,6 +767,33 @@ c              subrutina SHAKE
          close(111)
       end subroutine torque_calc
 
+
+      subroutine angular_calc(natoms, nmolecules, r, v)
+         implicit double precision(a-h,o-z)
+         double precision ,dimension(3) :: lever_arm
+         include 'exercicishake.dim'
+         dimension v(3,nmax,nmaxmol),r(3,nmax,nmaxmol), cm(3)
+         dimension ang_mom(3,natoms),  angular_moment(3)
+         dimension angmom_norm(nmolecules), cross_prod(3)
+
+         do imol = 1, nmolecules
+            cm= sum(r(:,:,imol), dim=2)/3.d0
+            do i=1, natoms
+               lever_arm(:)= r(:, i, imol)- cm(:)
+               call cross_product(v(:, i, imol), lever_arm, 
+     &         cross_prod)
+               ang_mom(:,i)=cross_prod
+            enddo
+
+            angular_moment(:) = sum(ang_mom, dim=2)
+            angmom_norm(imol) = dsqrt(sum(angular_moment(:)**2))
+         enddo
+         open(111, file='angular_mom.data',status='unknown',
+     &   access='append', action="write")
+         
+         write(111,*) (angmom_norm(imol), imol=1,nmolecules )
+         close(111)
+      end subroutine angular_calc
 
       subroutine cross_product(vec1, vec2, cross_prod)
          implicit double precision(a-h,o-z)
