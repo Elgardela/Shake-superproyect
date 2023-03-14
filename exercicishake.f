@@ -27,6 +27,7 @@
 c     1. Dimensionament de magnituds.
 
       dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol)
+      dimension r_0(3,nmax,nmaxmol)
       dimension vinf(3,nmax,nmaxmol)
       dimension accel(3,nmax,nmaxmol)
 
@@ -76,6 +77,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda,
      &mean iter SHAKE")
+      open(98, file='msd.dat', status='replace')
 
       allocate(gr_mat(2,num_bins))
       allocate(gr_mat_cm(2,num_bins))
@@ -84,8 +86,10 @@ c     5. Comen�a el bucle de la generacio de configuracions
       call g_r_cm(nmolecules,natoms,gr_mat_cm, r, num_bins, costat, 1)
       call g_r_atm(nmolecules,natoms,gr_mat_atm, r, num_bins, costat, 1)
       
-      allocate( r_sum(natoms, nmolecules))
-      call dist_atomic(natoms, nmolecules,r,r_sum, 1)
+      allocate( r_sum(natoms, nmolecules) )
+      call dist_atomic( natoms, nmolecules,r,r_sum, 1 )
+
+      r_0(:,:,:) = r(:,:,:)  ! Initial position for MSD
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -110,9 +114,13 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
          call dist_atomic(natoms, nmolecules,r,r_sum, 2)
          call torque_calc(natoms, nmolecules, r, accel)
+         call calc_msd(msd_val, r, r_0)
+
+         write(98,*) sim_temps, msd_val
      	 
       end do
       close(99)
+      close(98)
 
 c     Escriptura g(r)
       open(22, file='radial_func.out', status='replace')
@@ -729,9 +737,6 @@ c              subrutina SHAKE
                close(44)
 
             end select
-
-
-
       end subroutine dist_atomic
 
       subroutine torque_calc(natoms, nmolecules, r, accel)
@@ -776,4 +781,22 @@ c              subrutina SHAKE
             enddo
          enddo
       end subroutine cross_product
+
+      subroutine calc_msd(msd_val, r, r_0)
+         implicit double precision(a-h,o-z)
+         include 'exercicishake.dim'
+         double precision, dimension(3) :: rij
+         dimension r(3,nmax,nmaxmol), r_0(3,nmax,nmaxmol)
+
+         msd_val = 0.0d0
+
+         do ic=1,nmolecules
+            do is=1,natoms
+               rij(:) = r(:,is,ic)-r_0(:,is,ic)
+               rij = rij - box_size*dnint(rij/box_size)
+               msd_val = msd_val + sum(rij(:)**2, dim=1)
+            enddo
+         enddo
+
+      end subroutine calc_msd
 
