@@ -90,6 +90,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
       call dist_atomic( natoms, nmolecules,r,r_sum, 1 )
 
       r_0(:,:,:) = r(:,:,:)  ! Initial position for MSD
+      amsd_val = 0.0d0
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -105,6 +106,9 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &temperatura,nf,ecin)
          
          sim_temps = i*deltat
+         
+         call calc_msd(amsd_val, r, r_0, costat)
+         write(98,*) sim_temps, amsd_val
 
          write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,
      &lambda
@@ -114,9 +118,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
          call dist_atomic(natoms, nmolecules,r,r_sum, 2)
          call torque_calc(natoms, nmolecules, r, accel)
-         call calc_msd(msd_val, r, r_0)
-
-         write(98,*) sim_temps, msd_val
+         
      	 
       end do
       close(99)
@@ -782,21 +784,30 @@ c              subrutina SHAKE
          enddo
       end subroutine cross_product
 
-      subroutine calc_msd(msd_val, r, r_0)
+      subroutine calc_msd(amsd_val, r, r_0, box_size)
          implicit double precision(a-h,o-z)
          include 'exercicishake.dim'
          double precision, dimension(3) :: rij
+         double precision :: box_size
+         double precision :: amsd_val
+         
          dimension r(3,nmax,nmaxmol), r_0(3,nmax,nmaxmol)
 
-         msd_val = 0.0d0
+         amsd_val = 0.0d0
 
          do ic=1,nmolecules
             do is=1,natoms
                rij(:) = r(:,is,ic)-r_0(:,is,ic)
                rij = rij - box_size*dnint(rij/box_size)
-               msd_val = msd_val + sum(rij(:)**2, dim=1)
+               amsd_val = amsd_val + sum(rij(:)**2, dim=1)
             enddo
          enddo
 
       end subroutine calc_msd
+
+      subroutine calc_normal_vector()
+         implicit double precision(a-h,o-z)
+         include 'exercicishake.dim'
+
+      end subroutine calc_normal_vector
 

@@ -9,6 +9,6 @@
 - [x] Evaluar torque con histogramas de todos los frames y todas las moleculas (E)
 - [x] Evaluar la evolucion temporal del torque de una molecula (E)
 - [ ] Segun el articulo del "rotating ice phenomena", estudiar la distribución de la energía cnetica en el sistema
-- [ ] Calcular MSD (con o sin SHAKE) (M)
+- [x] Calcular MSD (con o sin SHAKE) (M)
 - [ ] Momento angular calcular (E)
 - [ ] Vectores normales y angulos (M)
