@@ -297,6 +297,37 @@ def plot_axis_alignement(angle_data: np.ndarray, angle_name: str) -> None:
     return None
 
 def plot_shake_iterations(shake_data: np.ndarray) -> None:
+    my_cmap = plt.cm.inferno
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
+
+    nrow = len(shake_data[:,0])
+    yticks = np.arange(nrow)
+
+    xbins = np.linspace(shake_data.min(), shake_data.max(), 50)
+
+    xcenter = np.convolve(xbins, np.ones(2), "valid")/2
+    xwidth = np.diff(xbins)
+
+    for i, ytick in enumerate(yticks):
+
+    #extract the current column from your df by its number
+        row =  shake_data[ytick,:]
+
+    #determine the histogram values, here you have to adapt it to your needs
+        histvals, _ = np.histogram(row, bins=xbins)
+
+    #plot the histogram as a bar for each bin
+    #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
+        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(histvals), alpha=0.666, edgecolor="grey", linewidth=0.1)
+
+
+    ax.set_xlabel('SHAKE iterations')
+
+    ax.set_ylabel('Time steps')
+    ax.set_zlabel('Frequency')
+    fig.savefig(f'figs/hist_shake_iterations.eps')
+    plt.close()
     return None
 
 if __name__ == '__main__':
