@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 # Parameters
 SIGMA: float = 3.405  # [A]
@@ -338,6 +339,53 @@ def plot_shake_iterations(shake_data: np.ndarray) -> None:
     plt.close()
     return None
 
+def plot_mean_SHAKEiters_per_tolerance(tests_dir: str) -> None:
+    """
+    Given a direcotry of where different simulations at different SHAKE tolerance values, it appends all the data and creates a mean value tolerance
+    plot
+    """
+    tolerance_mapping = {
+        '1': 1e-10,
+        '2': 1e-8,
+        '3': 1e-5,
+        '4': 1e-3,
+        '5': 1e-1,
+        '6': 1e-15
+    }
+    gardered_data = {}
+    for experiment in sorted(os.listdir(tests_dir)):
+        f = os.path.join(tests_dir, experiment)
+        if os.path.isdir(f):
+            steps_data = np.loadtxt(f'{f}/SHAKE_iters.out', skiprows=1)
+            gardered_data[experiment] = {
+                'mean': np.mean(steps_data[10:]),
+                'stdev': np.std(steps_data[10:])
+            }
+    fig, ax = plt.subplots()
+    ax.set_xlabel(r"Tolerance [$\AA$]")
+    ax.set_ylabel("SHAKE iteration steps")
+
+    tol_array = [tolerance_mapping[i] for i in gardered_data.keys()]
+    mean_array = [gardered_data[i]['mean'] for i in gardered_data.keys()]
+    stdev_array=[gardered_data[i]['stdev'] for i in gardered_data.keys()]
+
+    ax.scatter(
+        x=tol_array,
+        y=mean_array
+    )
+    ax.errorbar(
+        x=tol_array,
+        y=mean_array,
+        yerr=stdev_array,
+        solid_capstyle='projecting', capsize=5, ecolor='black', elinewidth=0.9,
+        barsabove=True, linestyle=''
+    )
+    ax.set_xscale('log')
+    ax.grid(alpha=0.5, linestyle=':')
+    fig.savefig('figs/shake_iters_tolerance.eps')
+    plt.close()
+    return None
+
 if __name__ == '__main__':
 
     # Loading data from the output file
@@ -381,6 +429,7 @@ if __name__ == '__main__':
     # plot_angular_mom(ang_mom)
     # plot_ang_mom_torque(torque, ang_mom, steps)
     # plot_axis_alignement(alpha_angle_data, 'x')
-    plot_shake_iterations(SHAKE_iterations)
+    # plot_shake_iterations(SHAKE_iterations)
+    plot_mean_SHAKEiters_per_tolerance('./iterations-tolerance')
 
     #print(f"Mean iterations: {np.mean(SHAKE_iterations)} +- {np.std(SHAKE_iterations)}")
