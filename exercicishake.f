@@ -27,7 +27,7 @@
       include 'exercicishake.dim'
 
 c     1. Dimensionament de magnituds.
-
+      dimension v(3,nmax,nmaxmol)
       dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol)
       dimension r_0(3,nmax,nmaxmol)
       dimension vinf(3,nmax,nmaxmol)
@@ -79,7 +79,8 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &cada tiempo (columnas)')
       close(111)
 
-      open(111, file='angular_mom.data',status='replace', action='write')
+      open(111, file='angular_mom.data',status='replace', 
+     & action='write')
       write(111,*) ('#Modulo momento angular para cada  
      &molécula (filas) para cada tiempo (columnas)')
       close(111)
