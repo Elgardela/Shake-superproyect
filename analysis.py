@@ -241,6 +241,19 @@ def plot_ang_mom_torque(torque_array, ang_mom_array, steps_array):
     
     return None
 
+def plot_msd(msd_data: np.ndarray) -> None:
+    time_msd = msd_data[:, 0]
+    msd_vals = msd_data[:, 1]
+    fig, ax = plt.subplots()
+    ax.plot(time_msd, msd_vals)
+    ax.set_xlabel("Simulation time [ps]")
+    ax.set_ylabel(r"MSD [$\AA^2$]")
+    D = np.polyfit(x=time_msd, y=msd_vals, deg=1) / 6.0
+    ax.text(0.6, 0.7, f"D = {D[0]:.4E} $\AA^2/ps$", transform=ax.transAxes)
+    fig.savefig("figs/msd.eps")
+    plt.close()
+    return None
+
 if __name__ == '__main__':
 
     # Loading data from the output file
