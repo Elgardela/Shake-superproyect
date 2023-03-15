@@ -21,13 +21,16 @@
       real*8,dimension(:,:), allocatable:: r_sum
       double precision,dimension(:,:), allocatable :: gr_mat_cm
       double precision,dimension(:,:), allocatable :: gr_mat_atm
+      double precision,dimension(:,:), allocatable :: alpha_mat,
+     & beta_mat,gamma_mat
       integer, dimension(:, :), allocatable :: i_array_iter_shake
       include 'exercicishake.dim'
 
 c     1. Dimensionament de magnituds.
 
       dimension r(3,nmax,nmaxmol),rpro(3,nmax,nmaxmol)
-      dimension vinf(3,nmax,nmaxmol), v(3,nmax,nmaxmol)
+      dimension r_0(3,nmax,nmaxmol)
+      dimension vinf(3,nmax,nmaxmol)
       dimension accel(3,nmax,nmaxmol)
 
 
@@ -45,6 +48,9 @@ c     2. Lectura de dades i calcul de quantitats relacionades
       close(1)
 
       allocate(i_array_iter_shake(nconf, nmolecules))
+      allocate(alpha_mat(nconf, nmolecules))
+      allocate(beta_mat(nconf, nmolecules))
+      allocate(gamma_mat(nconf, nmolecules))
 
       natoms = 3
       nf = 6*nmolecules-3 !nombre de graus de 
@@ -81,6 +87,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
       open(99, file='thermdata.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda,
      &mean iter SHAKE")
+      open(98, file='msd.dat', status='replace')
 
       allocate(gr_mat(2,num_bins))
       allocate(gr_mat_cm(2,num_bins))
@@ -89,8 +96,11 @@ c     5. Comen�a el bucle de la generacio de configuracions
       call g_r_cm(nmolecules,natoms,gr_mat_cm, r, num_bins, costat, 1)
       call g_r_atm(nmolecules,natoms,gr_mat_atm, r, num_bins, costat, 1)
       
-      allocate( r_sum(natoms, nmolecules))
-      call dist_atomic(natoms, nmolecules,r,r_sum, 1)
+      allocate( r_sum(natoms, nmolecules) )
+      call dist_atomic( natoms, nmolecules,r,r_sum, 1 )
+
+      r_0(:,:,:) = r(:,:,:)  ! Initial position for MSD
+      amsd_val = 0.0d0
       
       do i = 1,nconf
          call forces(nmolecules,natoms,r,costat,accel,rc,epot)
@@ -106,6 +116,9 @@ c     5. Comen�a el bucle de la generacio de configuracions
      &temperatura,nf,ecin,v)
          
          sim_temps = i*deltat
+         
+         call calc_msd(amsd_val, r, r_0, costat, nmolecules)
+         write(98,*) sim_temps, amsd_val
 
          write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,
      &lambda
@@ -115,10 +128,13 @@ c     5. Comen�a el bucle de la generacio de configuracions
          call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
          call dist_atomic(natoms, nmolecules,r,r_sum, 2)
          call torque_calc(natoms, nmolecules, r, accel)
+         call calc_angle_orentiation(r, alpha_mat(i,:), 
+     &   beta_mat(i,:), gamma_mat(i,:), nmolecules)
          call angular_calc(natoms, nmolecules, r, v)
      	 
       end do
       close(99)
+      close(98)
 
 c     Escriptura g(r)
       open(22, file='radial_func.out', status='replace')
@@ -143,6 +159,36 @@ c     Escriptura del numero d'iteracions per convergir en SHAKE
          write(24, '(A)') ''
       enddo
       close(24)
+
+c     Escriptura del angle entre l'eix x i la normal de cada triangle
+      open(25, file='alpha_angle.out', status='replace')
+      do is = 1, size(alpha_mat, dim=1)
+         do im = 1, size(alpha_mat, dim=2)
+            write(25, '(F12.8)',advance='no') alpha_mat(is, im)
+         enddo
+         write(25, '(A)') ''
+      enddo
+      close(25)
+
+c     Escriptura del angle entre l'eix y i la normal de cada triangle
+      open(26, file='beta_angle.out', status='replace')
+      do is = 1, size(beta_mat, dim=1)
+         do im = 1, size(beta_mat, dim=2)
+            write(26, '(F12.8)', advance='no') beta_mat(is, im)
+         enddo
+         write(26, '(A)') ''
+      enddo
+      close(26)
+
+c     Escriptura del angle entre l'eix y i la normal de cada triangle
+      open(27, file='gamma_angle.out', status='replace')
+      do is = 1, size(gamma_mat, dim=1)
+         do im = 1, size(gamma_mat, dim=2)
+            write(27, '(F12.8)', advance='no') gamma_mat(is, im)
+         enddo
+         write(27, '(A)') ''
+      enddo
+      close(27)
       
 c     5. Escriptura de la darrera configuracio en A i A/ps 
 
@@ -627,9 +673,8 @@ c              subrutina SHAKE
 
          iter_converge(:) = 0
 
-         iter_converge(:) = 0
+         rnova(:,:,:) = rpro(:,:,:)
 
-         ntimes=0
          do im = 1, nmolecules
 
             rpro_p = rpro(:, :, im)
@@ -735,9 +780,6 @@ c              subrutina SHAKE
                close(44)
 
             end select
-
-
-
       end subroutine dist_atomic
 
       subroutine torque_calc(natoms, nmolecules, r, accel)
@@ -809,4 +851,55 @@ c              subrutina SHAKE
             enddo
          enddo
       end subroutine cross_product
+
+      subroutine calc_msd(amsd_val, r, r_0, box_size, nmolecules)
+         implicit double precision(a-h,o-z)
+         include 'exercicishake.dim'
+         double precision, dimension(3) :: rij
+         double precision :: box_size
+         double precision :: amsd_val
+         
+         dimension r(3,nmax,nmaxmol), r_0(3,nmax,nmaxmol)
+
+         amsd_val = 0.0d0
+
+         do ic=1,nmolecules
+            do is=1,natoms
+               rij(:) = r(:,is,ic)-r_0(:,is,ic)
+               rij = rij - box_size*dnint(rij/box_size)
+               amsd_val = amsd_val + sum(rij(:)**2, dim=1)
+            enddo
+         enddo
+
+      end subroutine calc_msd
+
+      subroutine calc_angle_orentiation(r, alpha, beta, gamma, 
+     &  nmolecules)
+         implicit double precision(a-h,o-z)
+         include 'exercicishake.dim'
+         double precision, parameter, 
+     & dimension(3) :: ex = (/1.0d0, 0.0d0, 0.0d0/)
+         double precision, parameter, 
+     & dimension(3) :: ey = (/0.0d0, 1.0d0, 0.0d0/)
+         double precision, parameter, 
+     & dimension(3) :: ez = (/0.0d0, 0.0d0, 1.0d0/)
+         dimension r(3,nmax,nmaxmol)
+         dimension alpha(nmaxmol)
+         dimension beta(nmaxmol)
+         dimension gamma(nmaxmol)
+         dimension cm(3), ax1(3), ax2(3), bnormal_vec(3)
+
+         do ic=1,nmolecules
+            cm = sum(r(:,:,ic),dim=2)/3.0d0
+            ax1 = r(:,1,ic)-cm
+            ax2 = r(:,2,ic)-cm
+            ! Calculamos el vector normal
+            call cross_product(ax1,ax2,bnormal_vec)
+            bnormal_vec=bnormal_vec/norm2(bnormal_vec)
+            ! Calculamos angulos, ya que normal_vec, y ex, ey, ez son normales, por lo tanto, norma = 1 de todos
+            alpha(ic)=acos(dot_product(ex,bnormal_vec))
+            beta(ic)=acos(dot_product(ey,bnormal_vec))
+            gamma(ic)=acos(dot_product(ez,bnormal_vec))
+         enddo    
+      end subroutine calc_angle_orentiation
 
