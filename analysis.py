@@ -386,6 +386,52 @@ def plot_mean_SHAKEiters_per_tolerance(tests_dir: str) -> None:
     plt.close()
     return None
 
+def plot_mean_SHAKEiters_temp(tests_dir: str) -> None:
+    tolerance_mapping = {
+        '1': 50,
+        '2': 100,
+        '3': 150,
+        '4': 300,
+        '5': 400,
+        '6': 450
+    }
+    gardered_data = {}
+    for experiment in sorted(os.listdir(tests_dir)):
+        f = os.path.join(tests_dir, experiment)
+        if os.path.isdir(f):
+            steps_data = np.loadtxt(f'{f}/SHAKE_iters.out', skiprows=1)
+            gardered_data[experiment] = {
+                'mean': np.mean(steps_data[10:]),
+                'stdev': np.std(steps_data[10:])
+            }
+    fig, ax = plt.subplots()
+    ax.set_xlabel("Temperature [K]")
+    ax.set_ylabel("SHAKE iteration steps")
+
+    tol_array = [tolerance_mapping[i] for i in gardered_data.keys()]
+    mean_array = [gardered_data[i]['mean'] for i in gardered_data.keys()]
+    stdev_array=[gardered_data[i]['stdev'] for i in gardered_data.keys()]
+
+    ax.scatter(
+        x=tol_array,
+        y=mean_array
+    )
+    ax.errorbar(
+        x=tol_array,
+        y=mean_array,
+        yerr=stdev_array,
+        solid_capstyle='projecting', capsize=5, ecolor='black', elinewidth=0.9,
+        barsabove=True, linestyle=''
+    )
+    ax.set_xscale('log')
+    ax.grid(alpha=0.5, linestyle=':')
+    fig.savefig('figs/shake_iters_temperature.eps')
+    plt.close()
+    return None
+    return None
+
+
+
 if __name__ == '__main__':
 
     # Loading data from the output file
