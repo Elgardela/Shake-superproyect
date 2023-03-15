@@ -667,9 +667,8 @@ c              subrutina SHAKE
 
          iter_converge(:) = 0
 
-         iter_converge(:) = 0
+         rnova(:,:,:) = rpro(:,:,:)
 
-         ntimes=0
          do im = 1, nmolecules
 
             rpro_p = rpro(:, :, im)
