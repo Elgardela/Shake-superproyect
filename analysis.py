@@ -211,6 +211,8 @@ def plot_angular_mom(ang_mom_array):
     #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
         ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(i/nrow), alpha=0.666, edgecolor="grey", linewidth=0.1)
 
+    ax.azim = -75
+    ax.elev = 35
 
     ax.set_xlabel(r'Angular momentum [kg m$^2$/s]')
     ax.set_ylabel('Time steps')
@@ -279,7 +281,7 @@ def plot_axis_alignement(angle_data: np.ndarray, angle_name: str) -> None:
 
     #plot the histogram as a bar for each bin
     #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
-        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(histvals), alpha=0.666, edgecolor="grey", linewidth=0.1)
+        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(i/nrow), alpha=0.666, edgecolor="grey", linewidth=0.1)
 
 
     if angle_name == 'x':
@@ -288,6 +290,9 @@ def plot_axis_alignement(angle_data: np.ndarray, angle_name: str) -> None:
         ax.set_xlabel(r'$\theta_{\mathbf{n}y}$')
     else:
         ax.set_xlabel(r'$\theta_{\mathbf{n}z}$')
+
+    ax.azim = -75
+    ax.elev = 35
 
     ax.set_ylabel('Time steps')
     ax.set_zlabel('Frequency')
@@ -319,14 +324,17 @@ def plot_shake_iterations(shake_data: np.ndarray) -> None:
 
     #plot the histogram as a bar for each bin
     #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
-        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(histvals), alpha=0.666, edgecolor="grey", linewidth=0.1)
+        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(i/nrow), alpha=0.666, edgecolor="grey", linewidth=0.1)
 
 
     ax.set_xlabel('SHAKE iterations')
+    print(ax.elev, ax.azim)
+    ax.azim = -75
+    ax.elev = 35
 
     ax.set_ylabel('Time steps')
     ax.set_zlabel('Frequency')
-    fig.savefig(f'figs/hist_shake_iterations.eps')
+    fig.savefig(f'figs/hist_shake_iterations.pdf')
     plt.close()
     return None
 
@@ -338,11 +346,15 @@ if __name__ == '__main__':
 
     data_dist_atoms = np.loadtxt('distance_atoms.data', dtype=np.float64, skiprows=1)
 
-    #SHAKE_iterations = np.loadtxt('SHAKE_iters.out', dtype=np.uint16)
+    SHAKE_iterations = np.loadtxt('SHAKE_iters.out', dtype=np.float64)[::5]
 
     torque = np.loadtxt('torque.data', dtype=np.float64, skiprows=1)
 
-    ang_mom = np.loadtxt('angular_mom.data', dtype=np.float64, skiprows=1)    
+    ang_mom = np.loadtxt('angular_mom.data', dtype=np.float64, skiprows=1)
+
+    alpha_angle_data = np.loadtxt("alpha_angle.out", dtype=np.float64) 
+
+    print("Successfully loaded all data")
 
     # Separating observables
     steps: np.ndarray = data[:, 0]
@@ -367,6 +379,8 @@ if __name__ == '__main__':
     # plot_atom_distance(mol, dist, std_dist)
     # plot_torque(torque)
     # plot_angular_mom(ang_mom)
-    plot_ang_mom_torque(torque, ang_mom, steps)
+    # plot_ang_mom_torque(torque, ang_mom, steps)
+    # plot_axis_alignement(alpha_angle_data, 'x')
+    plot_shake_iterations(SHAKE_iterations)
 
     #print(f"Mean iterations: {np.mean(SHAKE_iterations)} +- {np.std(SHAKE_iterations)}")
