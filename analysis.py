@@ -254,6 +254,51 @@ def plot_msd(msd_data: np.ndarray) -> None:
     plt.close()
     return None
 
+def plot_axis_alignement(angle_data: np.ndarray, angle_name: str) -> None:
+    angle_data_degrees = np.degrees(angle_data)
+    
+    my_cmap = plt.cm.inferno
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
+
+    nrow = len(angle_data_degrees[:,0])
+    yticks = np.arange(nrow)
+
+    xbins = np.linspace(angle_data_degrees.min(), angle_data_degrees.max(), 50)
+
+    xcenter = np.convolve(xbins, np.ones(2), "valid")/2
+    xwidth = np.diff(xbins)
+
+    for i, ytick in enumerate(yticks):
+
+    #extract the current column from your df by its number
+        row =  angle_data_degrees[ytick,:]
+
+    #determine the histogram values, here you have to adapt it to your needs
+        histvals, _ = np.histogram(row, bins=xbins)
+
+    #plot the histogram as a bar for each bin
+    #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
+        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(histvals), alpha=0.666, edgecolor="grey", linewidth=0.1)
+
+
+    if angle_name == 'x':
+        ax.set_xlabel(r'$\theta_{\mathbf{n}x}$')
+    elif angle_name == 'y':
+        ax.set_xlabel(r'$\theta_{\mathbf{n}y}$')
+    else:
+        ax.set_xlabel(r'$\theta_{\mathbf{n}z}$')
+
+    ax.set_ylabel('Time steps')
+    ax.set_zlabel('Frequency')
+    fig.savefig(f'figs/hist_angle-{angle_name}.eps')
+    plt.close()
+
+    return None
+
+def plot_shake_iterations(shake_data: np.ndarray) -> None:
+    return None
+
 if __name__ == '__main__':
 
     # Loading data from the output file
