@@ -350,20 +350,20 @@ def plot_mean_SHAKEiters_per_tolerance(tests_dir: str) -> None:
         '3': 1e-5,
         '4': 1e-3,
         '5': 1e-1,
-        '6': 1e-15
+        '6': 1e-13
     }
     gardered_data = {}
     for experiment in sorted(os.listdir(tests_dir)):
         f = os.path.join(tests_dir, experiment)
         if os.path.isdir(f):
-            steps_data = np.loadtxt(f'{f}/SHAKE_iters.out', skiprows=1)
+            steps_data = np.loadtxt(f'{f}/SHAKE_iters.out', skiprows=1, usecols=196)
             gardered_data[experiment] = {
                 'mean': np.mean(steps_data[10:]),
                 'stdev': np.std(steps_data[10:])
             }
     fig, ax = plt.subplots()
     ax.set_xlabel(r"Tolerance [$\AA$]")
-    ax.set_ylabel("SHAKE iteration steps")
+    ax.set_ylabel("SHAKE iterations")
 
     tol_array = [tolerance_mapping[i] for i in gardered_data.keys()]
     mean_array = [gardered_data[i]['mean'] for i in gardered_data.keys()]
@@ -423,14 +423,10 @@ def plot_mean_SHAKEiters_temp(tests_dir: str) -> None:
         solid_capstyle='projecting', capsize=5, ecolor='black', elinewidth=0.9,
         barsabove=True, linestyle=''
     )
-    ax.set_xscale('log')
     ax.grid(alpha=0.5, linestyle=':')
     fig.savefig('figs/shake_iters_temperature.eps')
     plt.close()
     return None
-    return None
-
-
 
 if __name__ == '__main__':
 
@@ -477,5 +473,6 @@ if __name__ == '__main__':
     # plot_axis_alignement(alpha_angle_data, 'x')
     # plot_shake_iterations(SHAKE_iterations)
     plot_mean_SHAKEiters_per_tolerance('./iterations-tolerance')
+    plot_mean_SHAKEiters_temp('./iterations-temperature')
 
     #print(f"Mean iterations: {np.mean(SHAKE_iterations)} +- {np.std(SHAKE_iterations)}")
