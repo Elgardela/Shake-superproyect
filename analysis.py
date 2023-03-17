@@ -101,29 +101,36 @@ def plot_lambda(steps_array, lambda_array) -> None:
 
     return None
 
-def plot_gdr(radi_array, gdr_array) -> None:
-    
+def plot_gdr(radi_array, gdr_array, name) -> None:
+
     fig, ax = plt.subplots()
+
+    if name == 'all':
+        col = 'blue'
+    elif name == 'outer':
+        col = 'red'
+    elif name == 'cm':
+        col = 'green'
 
     if not RED_UNITS:
         ax.set_xlabel(r'Distance $r$[$\AA$]')
-        ax.set_ylabel(r'Radial distribution function, $g(r)$')
-        
-        ax.plot(radi_array*SIGMA, gdr_array)
+        ax.plot(radi_array*SIGMA, gdr_array, color=col)
     else: 
         ax.set_xlabel(r'Distance $r$ [-]')
-        ax.set_ylabel(r'Radial distribution function, $g(r)$')
+        ax.plot(radi_array, gdr_array, color=col)
         
-        ax.plot(radi_array, gdr_array)
+    ax.set_ylabel(r'Radial distribution function, $g(r)$')
+        
+        
 
     ax.grid(alpha=0.5, linestyle=':')
     ax.axhline(y=1.0, linestyle='--', linewidth=0.5, color='black')
 
-    print(f"RDF peak = {radi_array[gdr_array == np.max(gdr_array)][0]*SIGMA}")
+    print(f"RDF peak {name} = {radi_array[gdr_array == np.max(gdr_array)][0]*SIGMA}")
 
     fig.tight_layout()
 
-    fig.savefig(f'figs/rdf_withoutSHAKE_2.eps')
+    fig.savefig(f'figs/rdf_{name}.eps')
 
     plt.close()
 
@@ -138,7 +145,10 @@ def plot_atom_distance(mol_array, dist_array, std_array):
         ax.set_ylabel(r'Distance $r$[$\AA$]')
         
         
-        ax.errorbar(mol_array, dist_array*SIGMA, yerr=std_array*SIGMA, fmt=' ', alpha=0.7, capsize=2, color='k', linewidth=1)
+        ax.errorbar(x=mol_array, y=dist_array*SIGMA, yerr=std_array*SIGMA, 
+                    solid_capstyle='projecting', capsize=5, ecolor='black', elinewidth=0.5,
+                    barsabove=True, linestyle=''
+        )
         ax.plot(mol_array, dist_array*SIGMA, '.')
         #ax.axhline(y=3.0, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
         
@@ -146,11 +156,15 @@ def plot_atom_distance(mol_array, dist_array, std_array):
          ax.set_xlabel('Molecule')
          ax.set_ylabel('Distance')
         
-         ax.errorbar(mol_array, dist_array, yerr=std_array, fmt=' ', alpha=0.7, capsize=2)
-         ax.plot(mol_array, dist_array, '.')
-         #ax.axhline(y=3.0/SIGMA, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
+         ax.errorbar(x=mol_array, y=dist_array, yerr=std_array, 
+                    solid_capstyle='projecting', capsize=5, ecolor='black', elinewidth=0.9,
+                    barsabove=True, linestyle=''
+         )
 
-         
+         ax.plot(mol_array, dist_array, '.')
+         ax.axhline(y=3.0/SIGMA, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
+
+    ax.ticklabel_format(axis='y', style='plain', useMathText=True, useOffset=False)  
     ax.grid(alpha=0.5, linestyle=':')
     fig.tight_layout()
     #ax.legend(title=r'Tolerance= $10^{-10} \AA$', loc='best')
@@ -455,7 +469,7 @@ if __name__ == '__main__':
 
     #data_dist_atoms = np.loadtxt('distance_atoms_withoutSHAKE.data', dtype=np.float64, skiprows=1)
 
-    #SHAKE_iterations = np.loadtxt('SHAKE_iters.out', dtype=np.float64)[::5]
+    # SHAKE_iterations = np.loadtxt('SHAKE_iters.out', dtype=np.float64)[::5]
 
     torque = np.loadtxt('iterations-tolerance/1/torque.data', dtype=np.float64, skiprows=1)
 
@@ -474,8 +488,8 @@ if __name__ == '__main__':
     # temperature: np.ndarray = data[:, 4]
     # lambda_val: np.ndarray = data[:, 5]
     
-    # radi: np.ndarray = data_g_r[:, 0]
-    # gdr: np.ndarray = data_g_r[:, 1:]
+    radi: np.ndarray = data_g_r[:, 0]
+    gdr: np.ndarray = data_g_r[:, 1]
 
     # mol: np.ndarray = data_dist_atoms[:, 0]
     # dist: np.ndarray = data_dist_atoms[:, 1]
@@ -484,10 +498,9 @@ if __name__ == '__main__':
     # plot_energies(steps, ekinetik, epotential, etotal)
     # plot_temperature(steps, temperature)
     # plot_lambda(steps, lambda_val)
-    
-    # plot_gdr(radi, gdr[:,0])
-
-    # plot_gdr(radi, gdr[:,1])
+    plot_gdr(radi, gdr_outer, 'outer')
+    plot_gdr(radi, gdr_cm, 'cm')
+    plot_gdr(radi, gdr_allatom, 'all')
     # plot_atom_distance(mol, dist, std_dist)
     #plot_torque(torque)
     plot_angular_mom(ang_mom)
