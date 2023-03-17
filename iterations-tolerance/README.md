@@ -7,5 +7,6 @@ Ok, so jokes aside:
 - Folder number three -> tol=1e-5
 - Folder number four -> tol=1e-3
 - Folder number five -> tol=1e-1
+- Folder number six -> tol=1e-14 (I suppose)
  
 I keep asking myself if it is even necessary to go as high as 1e-1, but is just for the sake of having a super stupid and previsible result that we can say look! Im that smart that I can even predict that such tolerance gives less than one iteration!! How smart we are, aren't we? I know, I'm so ironic, perhaps the british influence.

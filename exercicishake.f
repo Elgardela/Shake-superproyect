@@ -118,7 +118,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
          
          sim_temps = i*deltat
          
-         call calc_msd(amsd_val, r, r_0, costat, nmolecules)
+         call calc_msd(amsd_val, r, r_0, costat, nmolecules, natoms)
          write(98,*) sim_temps, amsd_val
 
          write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,
@@ -761,6 +761,8 @@ c              subrutina SHAKE
                r_aux = r_sum(:, :)/dble(ntimes)
                dist_mean = sum(r_aux(:,:), dim=1)/3.d0
 
+               std(:)=0.d0
+
                do imol = 1,nmolecules
                   do j=1, natoms
                      std(imol)= std(imol) + (dist_mean(imol)
@@ -853,12 +855,13 @@ c              subrutina SHAKE
          enddo
       end subroutine cross_product
 
-      subroutine calc_msd(amsd_val, r, r_0, box_size, nmolecules)
+      subroutine calc_msd(amsd_val, r, r_0, box_size, nmolecules, 
+     &natoms)
          implicit double precision(a-h,o-z)
          include 'exercicishake.dim'
          double precision, dimension(3) :: rij
          double precision :: box_size
-         double precision :: amsd_val
+         double precision, intent(inout) :: amsd_val
          
          dimension r(3,nmax,nmaxmol), r_0(3,nmax,nmaxmol)
 
@@ -871,7 +874,7 @@ c              subrutina SHAKE
                amsd_val = amsd_val + sum(rij(:)**2, dim=1)
             enddo
          enddo
-
+         amsd_val = amsd_val/dble(natoms*nmolecules)
       end subroutine calc_msd
 
       subroutine calc_angle_orentiation(r, alpha, beta, gamma, 

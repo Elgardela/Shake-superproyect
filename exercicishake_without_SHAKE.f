@@ -17,7 +17,7 @@
 
       implicit double precision(a-h,o-z)
       double precision massa,lambda
-      real*8,dimension(:,:), allocatable::gr_mat, r_sum
+      real*8,dimension(:,:), allocatable::gr_mat_atm, r_sum
       include 'exercicishake.dim'
 
 c     1. Dimensionament de magnituds.
@@ -64,8 +64,8 @@ c     5. Comen�a el bucle de la generacio de configuracions
       open(99, file='thermdata_withoutSHAKE.out', status='replace')
       write(99,*) ("Time, ekin, epot, etot, temp, lambda")
 
-      allocate(gr_mat(2,num_bins), r_sum(natoms, nmolecules))
-      call g_r(nmolecules,natoms,gr_mat, r, num_bins, costat, 1)
+      allocate(gr_mat_atm(2,num_bins), r_sum(natoms, nmolecules))
+      call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,1) 
       call dist_atomic(natoms, nmolecules,r, r_sum, 1)
       
       do i = 1,nconf
@@ -84,7 +84,7 @@ c     5. Comen�a el bucle de la generacio de configuracions
 
          write(99,*) sim_temps,ecin,epot,ecin+epot,temperatura,lambda
          
-         call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 2)
+         call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,2)
          call dist_atomic(natoms, nmolecules,r,r_sum, 2)
      	 
       end do
@@ -93,9 +93,9 @@ c     5. Comen�a el bucle de la generacio de configuracions
 c     Escriptura g(r)
       open(22, file='radial_func_withoutSHAKE.out', status='replace')
       write(22,*) ("dr, g(r)")
-      call g_r(nmolecules, natoms,gr_mat, r, num_bins, costat, 3)
+      call g_r_atm(nmolecules,natoms,gr_mat_atm,r,num_bins,costat,3)
       do  j=1,num_bins 
-         write(22,*)  gr_mat(1,j),gr_mat(2,j)
+         write(22,*)  gr_mat_atm(1,j),gr_mat_atm(2,j)
       enddo
       close(22)
       call dist_atomic(natoms, nmolecules,r,r_sum, 3)
@@ -339,68 +339,89 @@ c       la posicio l'instant t + deltat.
 c              subrutina radial distribution
 *********************************************************
 *********************************************************
-      
-      subroutine g_r(nmolecules, natoms,gr_mat, r, num_bins, 
-     &box_size, switch_case)
-      
-      implicit double precision(a-h,o-z)
-      integer, intent(in)      :: switch_case
-      real*8, parameter        :: pi = 4.d0 * datan(1.d0)
-      integer, save            :: index_mat,total_part, n_gdr
-      real*8, save             :: dr, dist, dv, ndg, dens
-      include 'exercicishake.dim'
-      dimension r(3,nmax,nmaxmol), gr_mat(2,num_bins), rij(3)
-      
-      
-       select case (switch_case)
-         case (1)
-            ! SWITCH 1 => Memmory initialization
-            n_gdr = 0
-            total_part=natoms*nmolecules
-         
-            dr = box_size / (2.d0*dble(num_bins))
-            dens = dble(total_part) / (box_size ** 3)
-
-            gr_mat(1,:) = [(dble(i)*dr, i=1, num_bins)]
-            gr_mat(2,:) = 0.d0
-         
-         case (2)
-            ! SWITCH 2 => Positions binning
-            n_gdr = n_gdr + 1
             
-            do ic = 1,nmolecules-1
-               do is = 1,natoms
-                  do jc = ic+1,nmolecules
-                     do js = 1,natoms
-                        rij(:) = r(:,js,jc)-r(:,is,ic)
-                        rij = rij - box_size*dnint(rij/box_size)
-         
-                        dist=dsqrt(sum(rij**2))
-                        ! Apliquem el cutoff de maxima distancia
-                        if (dist .lt. box_size/2.d0) then
-                           index_mat = int(dist/dr) + 1
-                           gr_mat(2,index_mat) = gr_mat(2,index_mat) + 2.d0
-                        end if
+      subroutine g_r_atm(nmolecules, natoms,gr_mat_atm, r, num_bins, 
+     &   box_size, switch_case)
+            
+            implicit double precision(a-h,o-z)
+            integer, intent(in)      :: switch_case
+            real*8, parameter        :: pi = 4.d0 * datan(1.d0)
+            integer, save            :: index_mat,total_part, n_gdr
+            real*8, save             :: dr, dist, dv, ndg, dens
+            include 'exercicishake.dim'
+            dimension r(3,nmax,nmaxmol), gr_mat_atm(2,num_bins), rij(3)
+            
+            
+            select case (switch_case)
+               case (1)
+                  ! SWITCH 1 => Memmory initialization
+                  n_gdr = 0
+                  total_part=natoms*nmolecules
+               
+                  dr = box_size / (2.d0*dble(num_bins))
+                  dens = dble(total_part) / (box_size ** 3)
+
+                  gr_mat_atm(1,:) = [(dble(i)*dr, i=1, num_bins)]
+                  gr_mat_atm(2,:) = 0.d0
+               
+               case (2)
+                  ! SWITCH 2 => Positions binning
+                  n_gdr = n_gdr + 1
+                  
+                  ! Cae of atoms with other molecules
+                  do ic = 1,nmolecules-1
+                     do is = 1,natoms
+                        do jc = ic+1,nmolecules
+                           do js = 1,natoms
+                              rij(:) = r(:,js,jc)-r(:,is,ic)
+                              rij = rij - box_size*dnint(rij/box_size)
+               
+                              dist=dsqrt(sum(rij**2))
+                              ! Apliquem el cutoff de maxima distancia
+                              if (dist .lt. box_size/2.d0) then
+                                 index_mat = int(dist/dr) + 1
+                                 gr_mat_atm(2,index_mat) = 
+     &                           gr_mat_atm(2,index_mat) + 2.d0
+                              end if
+                           end do
+                        end do
                      end do
                   end do
-               end do
-         end do
 
-         case (3)
-            ! SWITCH = 3 => Normalization of g(r)
+                  ! Case with atoms of the same molecule
+                  do ic = 1, nmolecules
+                     do is = 1, natoms-1
+                        do js = is + 1, natoms
+                           rij(:) = r(:,js,ic) - r(:,is,ic)
+                           rij = rij - box_size*dnint(rij/box_size)
                
-            do i = 1, num_bins
-               associate(gdr => gr_mat(2,i))
-                  dv = (((dble(i) + 1.d0)**3)-(dble(i)**3))*(dr**3)
-                  ndg = (4.d0/ 3.d0) * pi * dv * dens
-               
-                  gdr = gdr / (dble(total_part) * ndg * dble(n_gdr))
-               end associate
-            end do
-                
-         end select
-            
-      end subroutine g_r
+                           dist=dsqrt(sum(rij**2))
+                           ! Apliquem el cutoff de maxima distancia
+                           if (dist .lt. box_size/2.d0) then
+                              index_mat = int(dist/dr) + 1
+                              gr_mat_atm(2,index_mat) = 
+     &                        gr_mat_atm(2,index_mat) + 2.d0
+                           endif
+                        enddo
+                     enddo
+                  enddo
+
+               case (3)
+                  ! SWITCH = 3 => Normalization of g(r)
+                     
+                  do i = 1, num_bins
+                     associate(gdr => gr_mat_atm(2,i))
+                     dv = (((dble(i) + 1.d0)**3)-(dble(i)**3))*(dr**3)
+                     ndg = (4.d0/ 3.d0) * pi * dv * dens
+                     
+                     gdr = gdr / (dble(total_part) * ndg * dble(n_gdr))
+                     end associate
+                  end do
+                     
+               end select
+                  
+            end subroutine g_r_atm
+    
 
       subroutine shake(nmolecules, r, rpro, natoms, deltat, r0, tol)
          implicit double precision(a-h,o-z)
@@ -506,8 +527,8 @@ c              subrutina radial distribution
                enddo
                std = dsqrt(1.d0/dble(natoms)*std)
 
-               open(44, file= 'distance_atoms.data', status='replace'
-     &         ,action='write')
+               open(44, file= 'distance_atoms_withoutSHAKE.data'
+     &         , status='replace',action='write')
                do imol=1, nmolecules
                   write(44, *) imol, dist_mean(imol), std(imol)
                enddo
