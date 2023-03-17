@@ -2,6 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+params = {"ytick.color" : "black",
+          "xtick.color" : "black",
+          "axes.labelcolor" : "black",
+          "axes.edgecolor" : "black",
+          "text.usetex" : True,
+          "font.family" : "serif",
+          "font.serif" : ["Computer Modern Serif"]}
+plt.rcParams.update(params)
+
 # Parameters
 SIGMA: float = 3.405  # [A]
 EPSILON: float = 119.8 # [K]
@@ -38,7 +47,7 @@ def plot_energies(steps_array: np.ndarray, ekin_array, epot_array, etot_array) -
 
     fig.tight_layout()
 
-    fig.savefig('figs/energy.eps')
+    fig.savefig('figs/energy_withoutSHAKE.eps')
     plt.close()
 
     return None
@@ -66,7 +75,7 @@ def plot_temperature(steps_array, temp_array) -> None:
     fig.legend()
     fig.tight_layout()
 
-    fig.savefig('figs/temperature.eps')
+    fig.savefig('figs/temperature_withoutSHAKE.eps')
     plt.close()
 
     return None
@@ -93,7 +102,7 @@ def plot_lambda(steps_array, lambda_array) -> None:
     return None
 
 def plot_gdr(radi_array, gdr_array) -> None:
-
+    
     fig, ax = plt.subplots()
 
     if not RED_UNITS:
@@ -114,7 +123,7 @@ def plot_gdr(radi_array, gdr_array) -> None:
 
     fig.tight_layout()
 
-    fig.savefig('figs/rdf.eps')
+    fig.savefig(f'figs/rdf_withoutSHAKE_2.eps')
 
     plt.close()
 
@@ -129,9 +138,9 @@ def plot_atom_distance(mol_array, dist_array, std_array):
         ax.set_ylabel(r'Distance $r$[$\AA$]')
         
         
-        ax.errorbar(mol_array, dist_array*SIGMA, yerr=std_array*SIGMA, fmt=' ', alpha=0.7, capsize=2)
+        ax.errorbar(mol_array, dist_array*SIGMA, yerr=std_array*SIGMA, fmt=' ', alpha=0.7, capsize=2, color='k', linewidth=1)
         ax.plot(mol_array, dist_array*SIGMA, '.')
-        ax.axhline(y=3.0, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
+        #ax.axhline(y=3.0, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
         
     else: 
          ax.set_xlabel('Molecule')
@@ -139,26 +148,26 @@ def plot_atom_distance(mol_array, dist_array, std_array):
         
          ax.errorbar(mol_array, dist_array, yerr=std_array, fmt=' ', alpha=0.7, capsize=2)
          ax.plot(mol_array, dist_array, '.')
-         ax.axhline(y=3.0/SIGMA, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
+         #ax.axhline(y=3.0/SIGMA, linestyle='--', linewidth=0.5, color='black', label=r'$3\AA$')
 
          
     ax.grid(alpha=0.5, linestyle=':')
     fig.tight_layout()
-    ax.legend(title=r'Tolerance= $10^{10} \AA$', loc='best')
+    #ax.legend(title=r'Tolerance= $10^{-10} \AA$', loc='best')
     
-    fig.savefig('figs/dist_atoms.eps')
+    fig.savefig('figs/dist_atoms_withoutSHAKE.pdf')
     plt.close()
     return None
 
 def plot_torque(torque_array):
-    my_cmap = plt.cm.inferno
+    
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
 
     nrow = len(torque_array[:,0])
     yticks = np.arange(nrow)
 
-    if not RED_UNITS: torque_array *= EPSILON*1e3
+    #if not RED_UNITS: torque_array *= EPSILON*1e3
 
     xbins = np.linspace(torque_array.min(), torque_array.max(), 50)
 
@@ -172,20 +181,26 @@ def plot_torque(torque_array):
 
     #determine the histogram values, here you have to adapt it to your needs
         histvals, _ = np.histogram(row, bins=xbins)
-
+       
     #plot the histogram as a bar for each bin
     #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
-        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(i/nrow), alpha=0.666, edgecolor="grey", linewidth=0.1)
+        patches=ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color='red', alpha=0.666, edgecolor="grey", linewidth=0.1)
+        for i in range(len(patches)):
+            n=histvals.astype(int)
+            patches[i].set_facecolor(plt.cm.inferno(n[i]/max(n)))
 
+    ax.azim = -75
+    ax.elev = 35
+    ax.tick_params(axis='x', which='major', pad=-5)
 
-    ax.set_xlabel(r'Torque [N$\cdot$m]')
+    ax.set_xlabel(r'Torque $\tau^*$', labelpad=-4)
     ax.set_ylabel('Time steps')
     ax.set_zlabel('Frequency')
-    fig.savefig('figs/hist_torque.eps')
+    fig.tight_layout()
+    fig.savefig('figs/hist_torque_1.pdf', bbox_inches='tight')
     plt.close()
 
     return None
-
 
 def plot_angular_mom(ang_mom_array):
     my_cmap = plt.cm.inferno
@@ -210,15 +225,19 @@ def plot_angular_mom(ang_mom_array):
 
     #plot the histogram as a bar for each bin
     #now with continuous color mapping and edgecolor, but thinner lines, so we can better see all bars
-        ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color=my_cmap(i/nrow), alpha=0.666, edgecolor="grey", linewidth=0.1)
+        patches=ax.bar(left=xcenter, height=histvals, width=xwidth, zs=ytick, zdir="y", color='red', alpha=0.666, edgecolor="grey", linewidth=0.1)
+        for i in range(len(patches)):
+            n=histvals.astype(int)
+            patches[i].set_facecolor(plt.cm.inferno(n[i]/max(n)))
 
     ax.azim = -75
     ax.elev = 35
+    ax.tick_params(axis='x', which='major', pad=-5)
 
-    ax.set_xlabel(r'Angular momentum [kg m$^2$/s]')
+    ax.set_xlabel(r'Angular momentum $L^*$', labelpad=-4)
     ax.set_ylabel('Time steps')
-    ax.set_zlabel('Frequency')
-    fig.savefig('figs/hist_ang_mom.eps')
+    ax.set_zlabel('Frequency', labelpad=-2)
+    fig.savefig('figs/hist_ang_mom.pdf', bbox_inches='tight', pad_inches=0.17)
     plt.close()
 
     return None
@@ -232,14 +251,14 @@ def plot_ang_mom_torque(torque_array, ang_mom_array, steps_array):
 
     for i in range(6,7):
         ax1.plot(steps_array*utemps, torque_array[:,i]*EPSILON*1e3, color=colors[i-3], label='Torque')
-        ax2.plot(steps_array[1:]*utemps, ang_mom_array[:,i], color=colors[i], linestyle= 'dashed', label='Angular momentum')
+        ax2.plot(steps_array*utemps, ang_mom_array[:,i]*EPSILON*1e3*utemps, color=colors[i], linestyle= 'dashed', label='Angular momentum')
     
-    ax1.set_xlabel('Time [s]')
+    ax1.set_xlabel('Time [ps]')
     ax1.set_ylabel(r'Torque [N$\cdot$m]')
-    ax2.set_ylabel('Angular momentum')
+    ax2.set_ylabel('Angular momentum [N$\cdot$m$\cdot$ps]')
 
-    fig.legend()
-    fig.savefig('figs/angmom_torque.eps')
+    fig.legend(loc='upper center')
+    fig.savefig('figs/angmom_torque.pdf')
     plt.close()
     
     return None
@@ -431,48 +450,51 @@ def plot_mean_SHAKEiters_temp(tests_dir: str) -> None:
 if __name__ == '__main__':
 
     # Loading data from the output file
-    data = np.loadtxt('thermdata.out', dtype=np.float64, skiprows=1)
-    data_g_r = np.loadtxt('radial_func.out', dtype=np.float64, skiprows=1)
+    data = np.loadtxt('iterations-tolerance/1/thermdata.out', dtype=np.float64, skiprows=1)
+    #data_g_r = np.loadtxt('radial_func_withoutSHAKE.out', dtype=np.float64, skiprows=1)
 
-    data_dist_atoms = np.loadtxt('distance_atoms.data', dtype=np.float64, skiprows=1)
+    #data_dist_atoms = np.loadtxt('distance_atoms_withoutSHAKE.data', dtype=np.float64, skiprows=1)
 
-    SHAKE_iterations = np.loadtxt('SHAKE_iters.out', dtype=np.float64)[::5]
+    #SHAKE_iterations = np.loadtxt('SHAKE_iters.out', dtype=np.float64)[::5]
 
-    torque = np.loadtxt('torque.data', dtype=np.float64, skiprows=1)
+    torque = np.loadtxt('iterations-tolerance/1/torque.data', dtype=np.float64, skiprows=1)
 
-    ang_mom = np.loadtxt('angular_mom.data', dtype=np.float64, skiprows=1)
+    ang_mom = np.loadtxt('iterations-tolerance/1/angular_mom.data', dtype=np.float64, skiprows=1)
 
-    alpha_angle_data = np.loadtxt("alpha_angle.out", dtype=np.float64) 
+    #alpha_angle_data = np.loadtxt("alpha_angle.out", dtype=np.float64) 
 
-    print("Successfully loaded all data")
+    #print("Successfully loaded all data")
 
     # Separating observables
     steps: np.ndarray = data[:, 0]
 
-    ekinetik: np.ndarray = data[:, 1]
-    epotential: np.ndarray = data[:, 2]
-    etotal: np.ndarray = data[:, 3]
-    temperature: np.ndarray = data[:, 4]
-    lambda_val: np.ndarray = data[:, 5]
+    # ekinetik: np.ndarray = data[:, 1]
+    # epotential: np.ndarray = data[:, 2]
+    # etotal: np.ndarray = data[:, 3]
+    # temperature: np.ndarray = data[:, 4]
+    # lambda_val: np.ndarray = data[:, 5]
     
-    radi: np.ndarray = data_g_r[:, 0]
-    gdr: np.ndarray = data_g_r[:, 1]
+    # radi: np.ndarray = data_g_r[:, 0]
+    # gdr: np.ndarray = data_g_r[:, 1:]
 
-    mol: np.ndarray = data_dist_atoms[:, 0]
-    dist: np.ndarray = data_dist_atoms[:, 1]
-    std_dist: np.ndarray = data_dist_atoms[:, 2]
+    # mol: np.ndarray = data_dist_atoms[:, 0]
+    # dist: np.ndarray = data_dist_atoms[:, 1]
+    # std_dist: np.ndarray = data_dist_atoms[:, 2]
 
     # plot_energies(steps, ekinetik, epotential, etotal)
     # plot_temperature(steps, temperature)
     # plot_lambda(steps, lambda_val)
-    # plot_gdr(radi, gdr)
+    
+    # plot_gdr(radi, gdr[:,0])
+
+    # plot_gdr(radi, gdr[:,1])
     # plot_atom_distance(mol, dist, std_dist)
-    # plot_torque(torque)
-    # plot_angular_mom(ang_mom)
-    # plot_ang_mom_torque(torque, ang_mom, steps)
+    #plot_torque(torque)
+    plot_angular_mom(ang_mom)
+    #plot_ang_mom_torque(torque, ang_mom, steps)
     # plot_axis_alignement(alpha_angle_data, 'x')
     # plot_shake_iterations(SHAKE_iterations)
-    plot_mean_SHAKEiters_per_tolerance('./iterations-tolerance')
-    plot_mean_SHAKEiters_temp('./iterations-temperature')
+    # plot_mean_SHAKEiters_per_tolerance('./iterations-tolerance')
+    # plot_mean_SHAKEiters_temp('./iterations-temperature')
 
     #print(f"Mean iterations: {np.mean(SHAKE_iterations)} +- {np.std(SHAKE_iterations)}")
